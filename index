@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Key Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ──────────────────────────────────────────── */
+:root{
+  --bg:#ECEEF2;--surface:#FFF;--surface2:#F4F5F8;--border:#DDE0E8;
+  --txt:#1B1D27;--txt2:#5A5F72;--txt3:#9499AB;
+  --accent:#4F6EF7;--ah:#3B59E3;--red:#E8475F;--green:#12B76A;--yellow:#F59E0B;
+  --r:10px;--rsm:6px;
+  --sh:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shm:0 4px 14px rgba(0,0,0,.10);--tr:.22s ease;
+}
+[data-theme="dark"]{
+  --bg:#10111A;--surface:#181924;--surface2:#1F2133;--border:#2B2D40;
+  --txt:#E4E6F0;--txt2:#8B8FA8;--txt3:#5A5E72;
+  --sh:0 1px 4px rgba(0,0,0,.25),0 1px 2px rgba(0,0,0,.2);
+  --shm:0 4px 14px rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background var(--tr),color var(--tr);padding-bottom:80px}
+button{font-family:inherit;cursor:pointer}
+select,input{font-family:inherit}
+
+/* ── TOPBAR ──────────────────────────────────────────── */
+.topbar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--sh);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#4F6EF7,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.logo h1{font-size:16px;font-weight:700;line-height:1.1}
+.logo span{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.theme-btn{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:500;color:var(--txt2);transition:all var(--tr)}
+.theme-btn:hover{background:var(--border);color:var(--txt)}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+.wrap{max-width:940px;margin:0 auto;padding:24px 16px}
+
+/* ── STATS ───────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;box-shadow:var(--sh)}
+.slbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin-bottom:4px}
+.snum{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.ssub{font-size:10px;color:var(--txt3);margin-top:3px}
+
+/* ── CARD ────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:14px}
+.card-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none;transition:background var(--tr)}
+.card-head:hover{background:var(--surface2)}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);display:flex;align-items:center;gap:8px}
+.card-body{padding:16px 18px}
+.card-chevron{font-size:11px;color:var(--txt3);transition:transform var(--tr)}
+.card-chevron.open{transform:rotate(180deg)}
+.card-body-wrap{overflow:hidden;transition:max-height .3s ease}
+
+/* ── SETTINGS ────────────────────────────────────────── */
+.set-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none;padding-bottom:0}
+.set-lbl{min-width:120px;font-size:12px;font-weight:600;color:var(--txt2)}
+.set-lbl small{display:block;font-weight:400;color:var(--txt3);font-size:10.5px;margin-top:1px}
+.set-val{flex:1;position:relative}
+.set-inp{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 36px 8px 12px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--txt);outline:none;transition:border-color var(--tr),box-shadow var(--tr)}
+.set-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,110,247,.13)}
+.set-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;color:var(--txt3);transition:color var(--tr)}
+.set-eye:hover{color:var(--txt)}
+.set-status{flex-shrink:0;font-size:11px;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.set-ok{background:rgba(18,183,106,.1);color:#12B76A}
+.set-empty{background:var(--surface2);color:var(--txt3);border:1px solid var(--border)}
+.settings-footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* ── FORM ────────────────────────────────────────────── */
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em}
+select,.inp{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:9px 12px;font-size:13.5px;color:var(--txt);transition:border-color var(--tr),box-shadow var(--tr);outline:none}
+select:focus,.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,110,247,.13)}
+select{cursor:pointer}
+.inp-key{font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:200px}
+.inp-lbl{width:148px}
+.inp-gist{flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:12px}
+
+/* ── PROVIDER INFO ───────────────────────────────────── */
+.pinfo{display:flex;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);margin-top:10px;overflow:hidden}
+.pinfo-item{display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;color:var(--txt2);border-right:1px solid var(--border)}
+.pinfo-item:last-child{border-right:none}
+.pinfo-item .lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3)}
+.fast{color:#12B76A;font-weight:600}
+.mid{color:#F59E0B;font-weight:600}
+.slow{color:#9499AB;font-weight:600}
+.varies{color:#4F6EF7;font-weight:600}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;border-radius:var(--rsm);font-size:13px;font-weight:500;border:none;transition:all var(--tr)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--ah);transform:translateY(-1px);box-shadow:var(--shm)}
+.btn-p:active{transform:none;box-shadow:none}
+.btn-g{background:transparent;color:var(--txt2);border:1px solid var(--border)}
+.btn-g:hover{background:var(--surface2);color:var(--txt)}
+.btn-teal{background:transparent;color:#0EA5E9;border:1px solid rgba(14,165,233,.3)}
+.btn-teal:hover{background:rgba(14,165,233,.08)}
+.btn-r{background:transparent;color:var(--red);border:1px solid transparent}
+.btn-r:hover{background:rgba(232,71,95,.08);border-color:rgba(232,71,95,.3)}
+.btn-sm{padding:5px 10px;font-size:11.5px}
+
+/* ── GROUPS ──────────────────────────────────────────── */
+.groups{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+.pgroup{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.phead{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none;transition:background var(--tr)}
+.phead:hover{background:var(--surface2)}
+.phead-l{display:flex;align-items:center;gap:10px}
+.pbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.b-groq      {background:rgba(255,107,53,.12);color:#FF6B35}
+.b-gemini    {background:rgba(0,180,216,.12); color:#00B4D8}
+.b-cerebras  {background:rgba(245,158,11,.12);color:#F59E0B}
+.b-mistral   {background:rgba(249,115,22,.12);color:#F97316}
+.b-openrouter{background:rgba(18,183,106,.12);color:#12B76A}
+.b-ghmodels  {background:rgba(99,102,241,.12);color:#6366F1}
+.pcount{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--txt3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px}
+.phead-r{display:flex;align-items:center;gap:8px}
+.chev{color:var(--txt3);font-size:11px;transition:transform var(--tr);display:inline-block}
+.chev.open{transform:rotate(180deg)}
+
+/* ── KEY ITEMS ───────────────────────────────────────── */
+.pbody{border-top:1px solid var(--border)}
+.kitem{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);transition:background var(--tr)}
+.kitem:last-child{border-bottom:none}
+.kitem:hover{background:var(--surface2)}
+.kinfo{flex:1;min-width:0}
+.kname{font-size:13px;font-weight:600;margin-bottom:2px;color:var(--txt)}
+.kval{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--txt2);cursor:pointer;word-break:break-all;transition:color var(--tr)}
+.kval:hover{color:var(--accent)}
+.kmeta{font-size:10px;color:var(--txt3);margin-top:3px;font-family:'JetBrains Mono',monospace}
+.kactions{display:flex;align-items:center;gap:5px;flex-shrink:0}
+
+/* ── STATUS BADGES ───────────────────────────────────── */
+.sbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:10.5px;font-weight:600;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.s-unknown{background:var(--surface2);color:var(--txt3);border:1px solid var(--border)}.s-unknown .sdot{background:var(--txt3)}
+.s-ok     {background:rgba(18,183,106,.1);color:#12B76A}                               .s-ok .sdot{background:#12B76A}
+.s-fail   {background:rgba(232,71,95,.1);color:#E8475F}                                .s-fail .sdot{background:#E8475F}
+.s-pending{background:rgba(245,158,11,.1);color:#F59E0B}                              .s-pending .sdot{background:#F59E0B}
+.s-cors   {background:rgba(99,102,241,.1);color:#6366F1;border:1px solid rgba(99,102,241,.2)} .s-cors .sdot{background:#6366F1}
+
+/* ── CORS NOTICE ─────────────────────────────────────── */
+.cors-notice{display:flex;align-items:flex-start;gap:8px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.18);border-radius:var(--rsm);padding:10px 13px;margin-top:10px;font-size:11.5px;color:var(--txt2);line-height:1.5}
+.cors-notice strong{color:#6366F1}
+
+/* ── SYNC ────────────────────────────────────────────── */
+.gist-id-row{display:flex;gap:8px;align-items:center}
+.sync-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.sync-status{font-size:11.5px;font-family:'JetBrains Mono',monospace;color:var(--txt3);padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:5px}
+.sync-status.synced{color:#12B76A;background:rgba(18,183,106,.07);border-color:rgba(18,183,106,.2)}
+
+/* ── INSTRUCTIONS ────────────────────────────────────── */
+.instr-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:12px 14px;margin-top:12px}
+.instr-steps{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.instr-step{font-size:12px;color:var(--txt2);display:flex;gap:9px;line-height:1.5}
+.inum{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:3px;color:var(--txt)}
+.secret-pair{margin-left:26px;display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.secret-pair div{font-size:11.5px;color:var(--txt2)}
+
+/* ── SCHED ───────────────────────────────────────────── */
+.sched-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.sched-pill{font-size:11.5px;font-family:'JetBrains Mono',monospace;padding:6px 12px;border-radius:6px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border)}
+.sched-pill.active{background:rgba(18,183,106,.08);color:#12B76A;border-color:rgba(18,183,106,.2)}
+.ml-auto{margin-left:auto}
+
+/* ── EMPTY ───────────────────────────────────────────── */
+.empty{padding:40px 20px;text-align:center;color:var(--txt3)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.empty p{font-size:13px}
+
+/* ── TOAST ───────────────────────────────────────────── */
+.toast-wrap{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:7px;z-index:9999}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 15px;box-shadow:var(--shm);font-size:12.5px;max-width:300px;animation:tIn .2s ease}
+.tok{border-left:3px solid #12B76A}.terr{border-left:3px solid #E8475F}.tinf{border-left:3px solid var(--accent)}
+@keyframes tIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+@keyframes tOut{to{transform:translateX(110%);opacity:0}}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media(max-width:640px){
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .form-row,.set-row{flex-direction:column}
+  .kitem{flex-wrap:wrap}.kactions{width:100%;justify-content:flex-end}
+  .topbar{padding:0 14px}
+  .gist-id-row{flex-direction:column;align-items:stretch}
+  .pinfo-item{flex:1 1 45%}
+}
+@media(max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🔑</div>
+    <div>
+      <h1>API Key Vault</h1>
+      <span>punakawan.tools</span>
+    </div>
+  </div>
+  <div class="topbar-r">
+    <button class="theme-btn" onclick="toggleTheme()"><span id="tIco">🌙</span><span id="tLbl">Dark</span></button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="slbl">Total</div><div class="snum" id="st-total">0</div><div class="ssub">tersimpan</div></div>
+    <div class="stat"><div class="slbl">Valid</div><div class="snum" id="st-ok" style="color:#12B76A">0</div><div class="ssub">aktif</div></div>
+    <div class="stat"><div class="slbl">Gagal</div><div class="snum" id="st-fail" style="color:#E8475F">0</div><div class="ssub">tidak valid</div></div>
+    <div class="stat"><div class="slbl">CORS</div><div class="snum" id="st-cors" style="color:#6366F1">0</div><div class="ssub">blokir browser</div></div>
+    <div class="stat"><div class="slbl">Provider</div><div class="snum" id="st-prov">0</div><div class="ssub">terhubung</div></div>
+  </div>
+
+  <!-- SETTINGS CARD -->
+  <div class="card" id="settingsCard">
+    <div class="card-head" onclick="toggleCard('settingsBody','settingsChev')">
+      <span class="card-title">⚙️ Pengaturan Akses GitHub <span id="settingsBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0">Belum diset</span></span>
+      <span class="card-chevron open" id="settingsChev">▼</span>
+    </div>
+    <div id="settingsBody">
+      <div class="card-body">
+        <!-- GitHub Token -->
+        <div class="set-row">
+          <div class="set-lbl">GitHub Token<small>Scope: gist + repo</small></div>
+          <div class="set-val">
+            <input class="set-inp" type="password" id="setGhToken" placeholder="ghp_xxxxxxxxxxxx">
+            <button class="set-eye" onclick="toggleSetEye('setGhToken',this)">👁</button>
+          </div>
+          <span class="set-status set-empty" id="ghTokenStatus">Belum diset</span>
+        </div>
+        <!-- Gist Token -->
+        <div class="set-row">
+          <div class="set-lbl">Gist Token<small>Opsional — scope: gist</small></div>
+          <div class="set-val">
+            <input class="set-inp" type="password" id="setGistToken" placeholder="Opsional, sama seperti GitHub Token">
+            <button class="set-eye" onclick="toggleSetEye('setGistToken',this)">👁</button>
+          </div>
+          <span class="set-status set-empty" id="gistTokenStatus">Opsional</span>
+        </div>
+        <div class="settings-footer">
+          <button class="btn btn-g btn-sm" onclick="testSettingsTokens()">⚡ Test Tokens</button>
+          <button class="btn btn-p btn-sm" onclick="saveSettings()">💾 Simpan Pengaturan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD KEY -->
+  <div class="card">
+    <div class="card-head" style="cursor:default"><span class="card-title">➕ Tambah API Key</span></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="fg">
+          <label>Provider</label>
+          <select id="selProv" onchange="updateProvInfo()">
+            <option value="gemini">🔵 Gemini Flash</option>
+            <option value="cerebras">🟡 Cerebras</option>
+            <option value="groq">🟠 Groq</option>
+            <option value="mistral">🔴 Mistral</option>
+            <option value="openrouter">🟢 OpenRouter</option>
+            <option value="github_models">⬛ GitHub Models</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Label</label>
+          <input class="inp inp-lbl" type="text" id="inpLabel" placeholder="e.g. main-key">
+        </div>
+        <div class="fg" style="flex:1">
+          <label>API Key</label>
+          <input class="inp inp-key" type="password" id="inpKey" placeholder="Paste API key di sini...">
+        </div>
+        <button class="btn btn-p" onclick="addKey()" style="flex-shrink:0;align-self:flex-end">
+          <span style="font-size:16px;line-height:1">+</span> Tambah
+        </button>
+      </div>
+      <div class="pinfo" id="provInfo"></div>
+      <div class="cors-notice">
+        <span>⚠️</span>
+        <span><strong>Catatan CORS:</strong> Test dari browser mungkin diblokir untuk Cerebras & Mistral — ini normal. Key tetap valid. Gunakan <strong>Cloud Scheduler</strong> untuk test yang akurat tanpa batasan CORS.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY GROUPS -->
+  <div class="groups" id="groupsWrap"></div>
+
+  <!-- GIST SYNC -->
+  <div class="card">
+    <div class="card-head" onclick="toggleCard('syncBody','syncChev')">
+      <span class="card-title">🔄 Sync ke GitHub Gist</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="syncStatus" class="sync-status">Belum sync</span>
+        <span class="card-chevron open" id="syncChev">▼</span>
+      </div>
+    </div>
+    <div id="syncBody">
+      <div class="card-body">
+        <div class="fg" style="margin-bottom:4px">
+          <label>Gist ID</label>
+          <div class="gist-id-row">
+            <input class="inp inp-gist" type="text" id="inpGistId" placeholder="Auto-diisi setelah save pertama...">
+            <button class="btn btn-g btn-sm" onclick="copyGistId()">📋 Salin</button>
+            <button class="btn btn-g btn-sm" onclick="openGist()">🔗 Buka</button>
+            <button class="btn btn-r btn-sm" onclick="clearGistId()">✕</button>
+          </div>
+        </div>
+        <div class="sync-row">
+          <button class="btn btn-p btn-sm" onclick="saveViaGhToken()">💾 Save via GitHub Token</button>
+          <button class="btn btn-p btn-sm" onclick="saveViaGistToken()">💾 Save via Gist Token</button>
+          <button class="btn btn-teal btn-sm" onclick="loadFromGist()">📂 Load from Gist</button>
+        </div>
+        <div style="margin-top:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);font-size:11.5px;color:var(--txt2);line-height:1.6">
+          ℹ️ GitHub/Gist Token diambil otomatis dari <strong>Pengaturan Akses</strong> di atas. Data vault disimpan ke <strong>private Gist</strong>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOUD SCHEDULER -->
+  <div class="card">
+    <div class="card-head" onclick="toggleCard('cloudBody','cloudChev')">
+      <span class="card-title">☁️ Cloud Scheduler — GitHub Actions</span>
+      <span class="card-chevron open" id="cloudChev">▼</span>
+    </div>
+    <div id="cloudBody">
+      <div class="card-body">
+        <div class="form-row">
+          <div class="fg">
+            <label>Interval Check</label>
+            <select id="selCloud">
+              <option value="3600000">Setiap 1 jam</option>
+              <option value="21600000" selected>Setiap 6 jam</option>
+              <option value="43200000">Setiap 12 jam</option>
+              <option value="86400000">Setiap 24 jam</option>
+            </select>
+          </div>
+          <button class="btn btn-p btn-sm" onclick="genWorkflow()" style="align-self:flex-end">⬇️ Download Workflow YAML</button>
+        </div>
+        <div class="instr-box">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin-bottom:6px">📋 Setup 4 Langkah</div>
+          <div class="instr-steps">
+            <div class="instr-step"><span class="inum">1</span><span>Download <span class="mono">api-vault-check.yml</span> → taruh di <span class="mono">.github/workflows/</span> repo GitHub.</span></div>
+            <div class="instr-step"><span class="inum">2</span><span>Repo GitHub → <strong>Settings → Secrets → Actions</strong>, tambahkan:</span></div>
+            <div class="secret-pair">
+              <div>• <span class="mono">VAULT_GH_TOKEN</span> → isi dari Pengaturan Akses</div>
+              <div>• <span class="mono">VAULT_GIST_ID</span> → Gist ID dari bagian Sync</div>
+            </div>
+            <div class="instr-step"><span class="inum">3</span><span>Commit + push → Actions berjalan otomatis sesuai jadwal, meski browser tertutup.</span></div>
+            <div class="instr-step"><span class="inum">4</span><span>Buka web app → <strong>📂 Load from Gist</strong> untuk lihat status terbaru dari cloud.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCAL SCHEDULER -->
+  <div class="card">
+    <div class="card-head" style="cursor:default"><span class="card-title">⏰ Local Scheduler (Browser)</span></div>
+    <div class="card-body">
+      <div class="sched-row">
+        <div class="fg">
+          <label>Interval</label>
+          <select id="selLocal">
+            <option value="0">— Nonaktif</option>
+            <option value="3600000">Setiap 1 jam</option>
+            <option value="21600000">Setiap 6 jam</option>
+            <option value="43200000">Setiap 12 jam</option>
+            <option value="86400000">Setiap 24 jam</option>
+          </select>
+        </div>
+        <button class="btn btn-g" id="localBtn" onclick="toggleLocalSched()" style="align-self:flex-end">▶ Aktifkan</button>
+        <div class="sched-pill" id="localPill" style="align-self:flex-end">Belum dijadwalkan</div>
+        <button class="btn btn-p btn-sm" onclick="testAllKeys()" style="margin-left:auto;align-self:flex-end">⚡ Test Semua</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ══════════════════════════════════════
+// PROVIDERS
+// ══════════════════════════════════════
+const P = {
+  gemini:       {name:'Gemini Flash', icon:'🔵',badge:'b-gemini',   quota:'~∞ (1M TPM)',rpm:'15',    speed:'Sedang',     privacy:'Data untuk training',  cors:false},
+  cerebras:     {name:'Cerebras',     icon:'🟡',badge:'b-cerebras', quota:'1,000,000',  rpm:'30',    speed:'Ultra-cepat',privacy:'Context max 8K',        cors:true},
+  groq:         {name:'Groq',         icon:'🟠',badge:'b-groq',     quota:'100K',       rpm:'30',    speed:'Ultra-cepat',privacy:'Privat, no training',   cors:false},
+  mistral:      {name:'Mistral',      icon:'🔴',badge:'b-mistral',  quota:'~33M/hari',  rpm:'Varies',speed:'Sedang',     privacy:'Wajib opt-in training', cors:true},
+  openrouter:   {name:'OpenRouter',   icon:'🟢',badge:'b-openrouter',quota:'Varies',    rpm:'20',    speed:'Varies',     privacy:'Gateway multi-model',   cors:false},
+  github_models:{name:'GitHub Models',icon:'⬛',badge:'b-ghmodels', quota:'—',          rpm:'—',     speed:'Low',        privacy:'Butuh GitHub Token',    cors:false}
+};
+const SCHED  = {3600000:'1 jam',21600000:'6 jam',43200000:'12 jam',86400000:'24 jam'};
+const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * *',86400000:'0 0 * * *'};
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let keys=[], settings={ghToken:'',gistToken:''};
+let isDark=false, localTimer=null, localOn=false;
+const col={};
+
+// ══════════════════════════════════════
+// PERSIST
+// ══════════════════════════════════════
+const saveKeys = ()=>{ try{localStorage.setItem('apivault_v2',JSON.stringify(keys))}catch(_){} };
+function loadKeys(){
+  try{
+    const d=localStorage.getItem('apivault_v2')||localStorage.getItem('apivault_v1');
+    if(d) keys=JSON.parse(d);
+  }catch(_){keys=[];}
+}
+function saveSettingsLS(){
+  try{localStorage.setItem('apivault_settings',JSON.stringify(settings))}catch(_){}
+}
+function loadSettingsLS(){
+  try{
+    const d=localStorage.getItem('apivault_settings');
+    if(d) settings={...settings,...JSON.parse(d)};
+  }catch(_){}
+}
+
+// ══════════════════════════════════════
+// THEME
+// ══════════════════════════════════════
+function toggleTheme(){
+  isDark=!isDark;
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
+  document.getElementById('tIco').textContent=isDark?'☀️':'🌙';
+  document.getElementById('tLbl').textContent=isDark?'Light':'Dark';
+  localStorage.setItem('apivault_theme',isDark?'dark':'light');
+}
+
+// ══════════════════════════════════════
+// CARD COLLAPSE
+// ══════════════════════════════════════
+function toggleCard(bodyId, chevId){
+  const body=document.getElementById(bodyId), chev=document.getElementById(chevId);
+  if(!body) return;
+  const hidden=body.style.display==='none';
+  body.style.display=hidden?'':'none';
+  if(chev) chev.classList.toggle('open',hidden);
+}
+
+// ══════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════
+function renderSettings(){
+  const gh=settings.ghToken, gist=settings.gistToken;
+  if(gh) document.getElementById('setGhToken').value=gh;
+  if(gist) document.getElementById('setGistToken').value=gist;
+  // status badges
+  const ghEl=document.getElementById('ghTokenStatus');
+  const giEl=document.getElementById('gistTokenStatus');
+  if(gh){ghEl.textContent='✓ Diset';ghEl.className='set-status set-ok';}
+  else{ghEl.textContent='Belum diset';ghEl.className='set-status set-empty';}
+  if(gist){giEl.textContent='✓ Diset';giEl.className='set-status set-ok';}
+  else{giEl.textContent='Opsional';giEl.className='set-status set-empty';}
+  // topbar badge
+  const badge=document.getElementById('settingsBadge');
+  if(gh){badge.textContent='✓ Token tersimpan';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(18,183,106,.1);color:#12B76A;margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0';}
+  else{badge.textContent='Belum diset';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0';}
+}
+function saveSettings(){
+  settings.ghToken=document.getElementById('setGhToken').value.trim();
+  settings.gistToken=document.getElementById('setGistToken').value.trim();
+  saveSettingsLS(); renderSettings();
+  toast('Pengaturan disimpan ✓','ok');
+  // auto collapse if tokens set
+  if(settings.ghToken){
+    const body=document.getElementById('settingsBody');
+    const chev=document.getElementById('settingsChev');
+    if(body&&body.style.display!=='none'){body.style.display='none';chev.classList.remove('open');}
+  }
+}
+function toggleSetEye(inputId, btn){
+  const inp=document.getElementById(inputId);
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
+async function testSettingsTokens(){
+  const gh=document.getElementById('setGhToken').value.trim();
+  const gist=document.getElementById('setGistToken').value.trim()||gh;
+  if(!gh){toast('Masukkan GitHub Token terlebih dahulu','err');return;}
+  toast('Testing tokens...','inf');
+  try{
+    const r=await fetch('https://api.github.com/user',{
+      headers:{Authorization:'token '+gh,Accept:'application/vnd.github.v3+json'}
+    });
+    if(r.ok){
+      const d=await r.json();
+      toast('✅ GitHub Token valid! User: '+d.login,'ok');
+    }else{
+      toast('❌ GitHub Token tidak valid (HTTP '+r.status+')','err');
+    }
+  }catch(e){
+    toast('⚠️ Gagal test (CORS/network): '+e.message,'err');
+  }
+}
+
+// ══════════════════════════════════════
+// PROVIDER INFO STRIP
+// ══════════════════════════════════════
+function updateProvInfo(){
+  const prov=document.getElementById('selProv').value, p=P[prov];
+  if(!p) return;
+  const sCls={Ultra:'fast','Ultra-cepat':'fast',Sedang:'mid',Low:'slow',Varies:'varies'}[p.speed]||'';
+  const sIco={'Ultra-cepat':'⚡',Sedang:'🔶',Low:'🐢',Varies:'〜'}[p.speed]||'';
+  const has=p.quota!=='—';
+  const corsWarn=p.cors?'<div class="pinfo-item"><span class="lbl">Browser&nbsp;</span><span style="color:#6366F1;font-weight:600">⚠ CORS mungkin diblokir</span></div>':'';
+  document.getElementById('provInfo').innerHTML=
+    (has?`<div class="pinfo-item"><span class="lbl">Quota&nbsp;</span>${p.quota}</div>`:'')
+    +(has?`<div class="pinfo-item"><span class="lbl">RPM&nbsp;</span>${p.rpm}</div>`:'')
+    +(p.speed!=='—'?`<div class="pinfo-item"><span class="lbl">Speed&nbsp;</span><span class="${sCls}">${sIco} ${p.speed}</span></div>`:'')
+    +`<div class="pinfo-item"><span class="lbl">Privacy&nbsp;</span>${p.privacy}</div>`
+    +corsWarn;
+}
+
+// ══════════════════════════════════════
+// ADD / DELETE
+// ══════════════════════════════════════
+function addKey(){
+  const prov=document.getElementById('selProv').value;
+  const lbl=document.getElementById('inpLabel').value.trim();
+  const val=document.getElementById('inpKey').value.trim();
+  if(!val){toast('Masukkan API key terlebih dahulu','err');return;}
+  const n=keys.filter(k=>k.provider===prov).length+1;
+  keys.push({id:Date.now()+Math.random(),provider:prov,
+    label:lbl||(P[prov].name+' #'+n),
+    value:val,status:'unknown',lastCheck:null,addedAt:new Date().toISOString()});
+  saveKeys();
+  document.getElementById('inpLabel').value='';
+  document.getElementById('inpKey').value='';
+  render(); toast('Key ditambahkan ✓','ok');
+}
+function deleteKey(id){
+  if(!confirm('Hapus API key ini?'))return;
+  keys=keys.filter(k=>k.id!=id); saveKeys(); render(); toast('Key dihapus','inf');
+}
+
+// ══════════════════════════════════════
+// MASK / REVEAL / COPY
+// ══════════════════════════════════════
+const mask=v=>v.length<=8?'●'.repeat(v.length):v.slice(0,6)+'●'.repeat(Math.min(v.length-10,20))+v.slice(-4);
+function toggleReveal(id){
+  const el=document.getElementById('kv-'+id),k=keys.find(k=>k.id==id);
+  if(!k||!el)return;
+  if(el.dataset.r==='1'){el.textContent=mask(k.value);el.dataset.r='0';}
+  else{el.textContent=k.value;el.dataset.r='1';setTimeout(()=>{el.textContent=mask(k.value);el.dataset.r='0';},6000);}
+}
+function copyKey(id){
+  const k=keys.find(k=>k.id==id);if(!k)return;
+  navigator.clipboard.writeText(k.value).then(()=>toast('Key disalin ✓','ok')).catch(()=>toast('Gagal menyalin','err'));
+}
+
+// ══════════════════════════════════════
+// TEST — dengan CORS detection
+// ══════════════════════════════════════
+async function doTest(prov, val){
+  // github_models uses the settings GitHub Token for validation
+  // but the key itself is what's stored in vault
+  try{
+    let r;
+    const ghSettings = settings.ghToken;
+    if(prov==='groq')
+      r=await fetch('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+val}});
+    else if(prov==='gemini')
+      r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+val);
+    else if(prov==='cerebras')
+      r=await fetch('https://api.cerebras.ai/v1/models',{headers:{Authorization:'Bearer '+val}});
+    else if(prov==='mistral')
+      r=await fetch('https://api.mistral.ai/v1/models',{headers:{Authorization:'Bearer '+val}});
+    else if(prov==='openrouter')
+      r=await fetch('https://openrouter.ai/api/v1/models',{headers:{Authorization:'Bearer '+val,'HTTP-Referer':'https://github.com','X-Title':'API Key Vault'}});
+    else if(prov==='github_models')
+      r=await fetch('https://api.github.com/user',{headers:{Authorization:'token '+val,Accept:'application/vnd.github.v3+json'}});
+    else return 'unknown';
+    // HTTP response received (CORS not blocked)
+    if(r.ok) return 'ok';
+    if(r.status===401||r.status===403) return 'fail'; // auth error = key invalid
+    return 'fail';
+  }catch(e){
+    // TypeError = Failed to fetch = CORS blocked or offline
+    const isCORS = e instanceof TypeError || (e.message&&(e.message.includes('fetch')||e.message.includes('CORS')||e.message.includes('network')));
+    return isCORS ? 'cors' : 'fail';
+  }
+}
+
+async function testKey(id){
+  const k=keys.find(k=>k.id==id);if(!k)return;
+  setStatus(id,'pending'); toast('Testing '+k.label+'...','inf');
+  const s=await doTest(k.provider,k.value);
+  k.status=s; k.lastCheck=new Date().toISOString(); saveKeys(); setStatus(id,s); updateStats();
+  if(s==='ok')   toast('✅ '+k.label+': Valid!','ok');
+  else if(s==='cors') toast('⚠️ '+k.label+': Diblokir browser (CORS) — key mungkin valid','inf');
+  else           toast('❌ '+k.label+': Tidak valid','err');
+}
+async function testGroupKeys(prov){
+  const grp=keys.filter(k=>k.provider===prov);
+  toast('Testing '+grp.length+' '+P[prov].name+' keys...','inf');
+  for(const k of grp) await testKey(k.id);
+}
+async function testAllKeys(){
+  if(!keys.length){toast('Belum ada key','inf');return;}
+  toast('Testing '+keys.length+' keys...','inf');
+  for(const k of keys) await testKey(k.id);
+  toast('Selesai ✓','ok');
+}
+function setStatus(id,s){
+  const el=document.getElementById('sb-'+id);if(!el)return;
+  const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
+  el.className='sbadge s-'+s;
+  el.innerHTML='<span class="sdot"></span>'+(lbl[s]||'?');
+}
+
+// ══════════════════════════════════════
+// GIST SYNC
+// ══════════════════════════════════════
+function getGhToken(preferGist){
+  if(preferGist&&settings.gistToken) return settings.gistToken;
+  if(settings.ghToken) return settings.ghToken;
+  toast('Set GitHub Token di Pengaturan Akses terlebih dahulu','err');
+  return null;
+}
+async function saveToGistWith(tokenVal){
+  if(!tokenVal)return;
+  const gistId=localStorage.getItem('apivault_gist_id')||document.getElementById('inpGistId').value.trim();
+  const body={description:'API Key Vault — punakawan.tools',public:false,
+    files:{'apivault.json':{content:JSON.stringify({keys,savedAt:new Date().toISOString(),version:'2.1'},null,2)}}};
+  const url=gistId?'https://api.github.com/gists/'+gistId:'https://api.github.com/gists';
+  try{
+    const r=await fetch(url,{method:gistId?'PATCH':'POST',
+      headers:{Authorization:'token '+tokenVal,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    if(!r.ok){toast('Gagal save Gist: HTTP '+r.status,'err');return;}
+    const d=await r.json();
+    localStorage.setItem('apivault_gist_id',d.id);
+    localStorage.setItem('apivault_last_sync',new Date().toISOString());
+    document.getElementById('inpGistId').value=d.id;
+    updateSyncStatus(); toast('Vault disimpan ke Gist ✓','ok');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+function saveViaGhToken()  { const t=getGhToken(false); if(t) saveToGistWith(t); }
+function saveViaGistToken(){ const t=getGhToken(true);  if(t) saveToGistWith(t); }
+async function loadFromGist(){
+  const gistId=document.getElementById('inpGistId').value.trim()||localStorage.getItem('apivault_gist_id');
+  if(!gistId){toast('Masukkan Gist ID terlebih dahulu','err');return;}
+  const token=settings.ghToken||settings.gistToken;
+  const headers=token?{Authorization:'token '+token,Accept:'application/vnd.github.v3+json'}:{Accept:'application/vnd.github.v3+json'};
+  try{
+    const r=await fetch('https://api.github.com/gists/'+gistId,{headers});
+    if(!r.ok){toast('Gagal load Gist: HTTP '+r.status,'err');return;}
+    const d=await r.json();
+    const content=d.files?.['apivault.json']?.content;
+    if(!content){toast('apivault.json tidak ada di Gist','err');return;}
+    const vault=JSON.parse(content);
+    if(vault.keys){
+      vault.keys.forEach(gk=>{
+        const local=keys.find(k=>k.id==gk.id);
+        if(local){local.status=gk.status;local.lastCheck=gk.lastCheck;}
+        else keys.push(gk);
+      });
+    }
+    localStorage.setItem('apivault_gist_id',gistId);
+    localStorage.setItem('apivault_last_sync',new Date().toISOString());
+    document.getElementById('inpGistId').value=gistId;
+    saveKeys(); render(); updateSyncStatus();
+    const last=vault.lastCloudCheck?new Date(vault.lastCloudCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):null;
+    toast('Vault dimuat ✓'+(last?' · Cloud check: '+last:''),'ok');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+function copyGistId(){ const id=document.getElementById('inpGistId').value.trim(); if(!id){toast('Belum ada Gist ID','inf');return;} navigator.clipboard.writeText(id).then(()=>toast('Gist ID disalin ✓','ok')); }
+function openGist(){ const id=document.getElementById('inpGistId').value.trim(); if(!id){toast('Belum ada Gist ID','inf');return;} window.open('https://gist.github.com/'+id,'_blank'); }
+function clearGistId(){ if(!confirm('Reset Gist ID?'))return; localStorage.removeItem('apivault_gist_id'); localStorage.removeItem('apivault_last_sync'); document.getElementById('inpGistId').value=''; updateSyncStatus(); toast('Gist ID direset','inf'); }
+function updateSyncStatus(){
+  const last=localStorage.getItem('apivault_last_sync'), el=document.getElementById('syncStatus');
+  if(last){el.textContent='✓ '+new Date(last).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'});el.classList.add('synced');}
+  else{el.textContent='Belum sync';el.classList.remove('synced');}
+}
+
+// ══════════════════════════════════════
+// WORKFLOW GENERATOR
+// ══════════════════════════════════════
+function genWorkflow(){
+  const ms=parseInt(document.getElementById('selCloud').value)||21600000;
+  const cron=CRON[ms]||'0 */6 * * *';
+  const yaml=
+`# API Key Vault — Cloud Health Check
+# punakawan.tools | Generated automatically
+# Place at: .github/workflows/api-vault-check.yml
+# Secrets needed: VAULT_GH_TOKEN, VAULT_GIST_ID
+
+name: API Key Vault Health Check
+
+on:
+  schedule:
+    - cron: '${cron}'
+  workflow_dispatch:
+
+jobs:
+  check-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check All API Keys
+        env:
+          GH_TOKEN: \${{ secrets.VAULT_GH_TOKEN }}
+          GIST_ID: \${{ secrets.VAULT_GIST_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request, urllib.error, json, os, time
+
+          token   = os.environ['GH_TOKEN']
+          gist_id = os.environ['GIST_ID']
+
+          def api(url, method='GET', data=None, hdrs={}):
+              h = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'}
+              h.update(hdrs)
+              req = urllib.request.Request(url, data=data, method=method, headers=h)
+              return urllib.request.urlopen(req, timeout=15)
+
+          # Load vault
+          resp  = api('https://api.github.com/gists/' + gist_id)
+          gist  = json.loads(resp.read())
+          vault = json.loads(gist['files']['apivault.json']['content'])
+          keys  = vault.get('keys', [])
+
+          def test(k):
+              p, v = k['provider'], k['value']
+              try:
+                  if p == 'groq':
+                      r = urllib.request.Request('https://api.groq.com/openai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'gemini':
+                      r = 'https://generativelanguage.googleapis.com/v1beta/models?key='+v
+                  elif p == 'cerebras':
+                      r = urllib.request.Request('https://api.cerebras.ai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'mistral':
+                      r = urllib.request.Request('https://api.mistral.ai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'openrouter':
+                      r = urllib.request.Request('https://openrouter.ai/api/v1/models',
+                          headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
+                  elif p == 'github_models':
+                      r = urllib.request.Request('https://api.github.com/user',
+                          headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
+                  else:
+                      return 'unknown'
+                  urllib.request.urlopen(r, timeout=10)
+                  return 'ok'
+              except urllib.error.HTTPError as e:
+                  print('HTTP ' + str(e.code))
+                  return 'fail'
+              except Exception as e:
+                  print('err: ' + str(e))
+                  return 'fail'
+
+          now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+          ok_n = fail_n = 0
+          print('Checking ' + str(len(keys)) + ' keys at ' + now)
+
+          for k in keys:
+              print('  [' + k.get('provider','?') + '] ' + k.get('label','?')[:30] + ' ... ', end='', flush=True)
+              s = test(k)
+              k['status']    = s
+              k['lastCheck'] = now
+              print(s)
+              if s == 'ok': ok_n += 1
+              else: fail_n += 1
+
+          vault['keys']          = keys
+          vault['lastCloudCheck'] = now
+          vault['cloudSummary']  = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
+
+          patch = json.dumps({'files':{'apivault.json':{'content':json.dumps(vault,indent=2)}}}).encode()
+          api('https://api.github.com/gists/'+gist_id,'PATCH',patch)
+          print('Done: '+str(ok_n)+' valid, '+str(fail_n)+' failed.')
+          PYEOF
+`;
+  const blob=new Blob([yaml],{type:'text/yaml'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='api-vault-check.yml';a.click();
+  URL.revokeObjectURL(url);
+  toast('Workflow YAML didownload ✓','ok');
+}
+
+// ══════════════════════════════════════
+// LOCAL SCHEDULER
+// ══════════════════════════════════════
+function toggleLocalSched(){
+  if(localOn){
+    clearInterval(localTimer);localTimer=null;localOn=false;
+    document.getElementById('localBtn').textContent='▶ Aktifkan';
+    document.getElementById('localPill').textContent='Belum dijadwalkan';
+    document.getElementById('localPill').classList.remove('active');
+    toast('Local scheduler dinonaktifkan','inf');return;
+  }
+  const ms=parseInt(document.getElementById('selLocal').value);
+  if(!ms){toast('Pilih interval terlebih dahulu','err');return;}
+  localTimer=setInterval(testAllKeys,ms);localOn=true;
+  document.getElementById('localBtn').textContent='⏹ Stop';
+  document.getElementById('localPill').textContent='● Aktif · '+SCHED[ms];
+  document.getElementById('localPill').classList.add('active');
+  toast('Local scheduler setiap '+SCHED[ms]+' aktif ✓','ok');
+}
+
+// ══════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════
+const render=()=>{updateStats();renderGroups();};
+function updateStats(){
+  document.getElementById('st-total').textContent=keys.length;
+  document.getElementById('st-ok').textContent=keys.filter(k=>k.status==='ok').length;
+  document.getElementById('st-fail').textContent=keys.filter(k=>k.status==='fail').length;
+  document.getElementById('st-cors').textContent=keys.filter(k=>k.status==='cors').length;
+  document.getElementById('st-prov').textContent=new Set(keys.map(k=>k.provider)).size;
+}
+function renderGroups(){
+  const wrap=document.getElementById('groupsWrap');
+  const groups={};
+  for(const pk of Object.keys(P)){const g=keys.filter(k=>k.provider===pk);if(g.length)groups[pk]=g;}
+  if(!Object.keys(groups).length){
+    wrap.innerHTML='<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';return;
+  }
+  wrap.innerHTML=Object.entries(groups).map(([pk,grp])=>{
+    const p=P[pk],open=!col[pk];
+    return `<div class="pgroup">
+  <div class="phead" onclick="toggleGroup('${pk}')">
+    <div class="phead-l"><span class="pbadge ${p.badge}">${p.icon} ${p.name}</span><span class="pcount">${grp.length} key${grp.length>1?'s':''}</span></div>
+    <div class="phead-r"><button class="btn btn-g btn-sm" onclick="event.stopPropagation();testGroupKeys('${pk}')">⚡ Test semua</button><span class="chev ${open?'open':''}" id="chev-${pk}">▼</span></div>
+  </div>
+  <div class="pbody" id="pb-${pk}" ${open?'':'style="display:none"'}>${grp.map(k=>keyItem(k)).join('')}</div>
+</div>`;
+  }).join('');
+}
+function keyItem(k){
+  const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
+  const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const last=k.lastCheck?new Date(k.lastCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):'—';
+  return `<div class="kitem" id="ki-${k.id}">
+  <div class="kinfo">
+    <div class="kname">${esc(k.label)}</div>
+    <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
+    <div class="kmeta">+ ${date} · cek: ${last}</div>
+  </div>
+  <div class="kactions">
+    <span class="sbadge s-${k.status}" id="sb-${k.id}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
+    <button class="btn btn-g btn-sm" onclick="testKey(${k.id})">⚡</button>
+    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id})">📋</button>
+    <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})">🗑</button>
+  </div>
+</div>`;
+}
+function toggleGroup(pk){
+  col[pk]=!col[pk];
+  const body=document.getElementById('pb-'+pk),chev=document.getElementById('chev-'+pk);
+  if(body) body.style.display=col[pk]?'none':'';
+  if(chev) chev.classList.toggle('open',!col[pk]);
+}
+
+// ══════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════
+function toast(msg,type='inf'){
+  const wrap=document.getElementById('toastWrap'),el=document.createElement('div');
+  el.className='toast '+({ok:'tok',err:'terr',inf:'tinf'}[type]||'tinf');
+  el.textContent=msg; wrap.appendChild(el);
+  setTimeout(()=>{el.style.animation='tOut .25s ease forwards';setTimeout(()=>el.remove(),260);},3200);
+}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  loadKeys(); loadSettingsLS();
+  if(localStorage.getItem('apivault_theme')==='dark'){
+    isDark=true;document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('tIco').textContent='☀️';document.getElementById('tLbl').textContent='Light';
+  }
+  const gid=localStorage.getItem('apivault_gist_id');
+  if(gid) document.getElementById('inpGistId').value=gid;
+  // Auto-collapse settings if already set
+  if(settings.ghToken){
+    const body=document.getElementById('settingsBody');
+    const chev=document.getElementById('settingsChev');
+    if(body){body.style.display='none';chev.classList.remove('open');}
+  }
+  render(); renderSettings(); updateProvInfo(); updateSyncStatus();
+  document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
+});
+</script>
+</body>
+</html>
