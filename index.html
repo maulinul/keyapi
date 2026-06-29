@@ -119,6 +119,9 @@ select{cursor:pointer}
 .b-mistral   {background:rgba(249,115,22,.12);color:#F97316}
 .b-openrouter{background:rgba(18,183,106,.12);color:#12B76A}
 .b-ghmodels  {background:rgba(99,102,241,.12);color:#6366F1}
+.b-deepseek  {background:rgba(0,128,255,.12); color:#0080FF}
+.b-qwen      {background:rgba(124,58,237,.12);color:#7C3AED}
+.b-claude    {background:rgba(217,119,6,.12); color:#D97706}
 .pcount{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--txt3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px}
 .phead-r{display:flex;align-items:center;gap:8px}
 .chev{color:var(--txt3);font-size:11px;transition:transform var(--tr);display:inline-block}
@@ -269,6 +272,9 @@ select{cursor:pointer}
             <option value="mistral">🔴 Mistral</option>
             <option value="openrouter">🟢 OpenRouter</option>
             <option value="github_models">⬛ GitHub Models</option>
+            <option value="deepseek">🔷 DeepSeek</option>
+            <option value="qwen">🟣 Qwen</option>
+            <option value="claude">🟤 Claude</option>
           </select>
         </div>
         <div class="fg">
@@ -398,7 +404,10 @@ const P = {
   groq:         {name:'Groq',         icon:'🟠',badge:'b-groq',     quota:'100K',       rpm:'30',    speed:'Ultra-cepat',privacy:'Privat, no training',   cors:false},
   mistral:      {name:'Mistral',      icon:'🔴',badge:'b-mistral',  quota:'~33M/hari',  rpm:'Varies',speed:'Sedang',     privacy:'Wajib opt-in training', cors:true},
   openrouter:   {name:'OpenRouter',   icon:'🟢',badge:'b-openrouter',quota:'Varies',    rpm:'20',    speed:'Varies',     privacy:'Gateway multi-model',   cors:false},
-  github_models:{name:'GitHub Models',icon:'⬛',badge:'b-ghmodels', quota:'—',          rpm:'—',     speed:'Low',        privacy:'Butuh GitHub Token',    cors:false}
+  github_models:{name:'GitHub Models',icon:'⬛',badge:'b-ghmodels', quota:'—',          rpm:'—',     speed:'Low',        privacy:'Butuh GitHub Token',    cors:false},
+  deepseek:     {name:'DeepSeek',     icon:'🔷',badge:'b-deepseek', quota:'Varies',     rpm:'60',    speed:'Cepat',      privacy:'Privat, no training',   cors:true},
+  qwen:         {name:'Qwen',         icon:'🟣',badge:'b-qwen',     quota:'Varies',     rpm:'60',    speed:'Sedang',     privacy:'Privat',                cors:true},
+  claude:       {name:'Claude',       icon:'🟤',badge:'b-claude',   quota:'Varies',     rpm:'50',    speed:'Sedang',     privacy:'Privat, no training',   cors:true}
 };
 const SCHED  = {3600000:'1 jam',21600000:'6 jam',43200000:'12 jam',86400000:'24 jam'};
 const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * *',86400000:'0 0 * * *'};
@@ -584,6 +593,12 @@ async function doTest(prov, val){
       r=await fetch('https://openrouter.ai/api/v1/models',{headers:{Authorization:'Bearer '+val,'HTTP-Referer':'https://github.com','X-Title':'API Key Vault'}});
     else if(prov==='github_models')
       r=await fetch('https://api.github.com/user',{headers:{Authorization:'token '+val,Accept:'application/vnd.github.v3+json'}});
+    else if(prov==='deepseek')
+      r=await fetch('https://api.deepseek.com/models',{headers:{Authorization:'Bearer '+val}});
+    else if(prov==='qwen')
+      r=await fetch('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',{headers:{Authorization:'Bearer '+val}});
+    else if(prov==='claude')
+      r=await fetch('https://api.anthropic.com/v1/models',{headers:{'x-api-key':val,'anthropic-version':'2023-06-01'}});
     else return 'unknown';
     // HTTP response received (CORS not blocked)
     if(r.ok) return 'ok';
@@ -756,6 +771,15 @@ jobs:
                   elif p == 'github_models':
                       r = urllib.request.Request('https://api.github.com/user',
                           headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
+                  elif p == 'deepseek':
+                      r = urllib.request.Request('https://api.deepseek.com/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'qwen':
+                      r = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'claude':
+                      r = urllib.request.Request('https://api.anthropic.com/v1/models',
+                          headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
                   else:
                       return 'unknown'
                   urllib.request.urlopen(r, timeout=10)
