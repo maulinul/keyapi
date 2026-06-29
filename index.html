@@ -758,7 +758,7 @@ jobs:
                       r = urllib.request.Request('https://api.groq.com/openai/v1/models',
                           headers={'Authorization':'Bearer '+v})
                   elif p == 'gemini':
-                      r = 'https://generativelanguage.googleapis.com/v1beta/models?key='+v
+                      r = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models?key='+v)
                   elif p == 'cerebras':
                       r = urllib.request.Request('https://api.cerebras.ai/v1/models',
                           headers={'Authorization':'Bearer '+v})
