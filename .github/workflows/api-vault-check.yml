@@ -1,0 +1,102 @@
+# API Key Vault — Cloud Health Check
+# punakawan.tools | Generated automatically
+# Place at: .github/workflows/api-vault-check.yml
+# Secrets needed: VAULT_GH_TOKEN, VAULT_GIST_ID
+
+name: API Key Vault Health Check
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check All API Keys
+        env:
+          GH_TOKEN: ${{ secrets.VAULT_GH_TOKEN }}
+          GIST_ID: ${{ secrets.VAULT_GIST_ID }}
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request, urllib.error, json, os, time
+
+          token   = os.environ['GH_TOKEN']
+          gist_id = os.environ['GIST_ID']
+
+          def api(url, method='GET', data=None, hdrs={}):
+              h = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'}
+              h.update(hdrs)
+              req = urllib.request.Request(url, data=data, method=method, headers=h)
+              return urllib.request.urlopen(req, timeout=15)
+
+          # Load vault
+          resp  = api('https://api.github.com/gists/' + gist_id)
+          gist  = json.loads(resp.read())
+          vault = json.loads(gist['files']['apivault.json']['content'])
+          keys  = vault.get('keys', [])
+
+          def test(k):
+              p, v = k['provider'], k['value']
+              try:
+                  if p == 'groq':
+                      r = urllib.request.Request('https://api.groq.com/openai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'gemini':
+                      r = 'https://generativelanguage.googleapis.com/v1beta/models?key='+v
+                  elif p == 'cerebras':
+                      r = urllib.request.Request('https://api.cerebras.ai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'mistral':
+                      r = urllib.request.Request('https://api.mistral.ai/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'openrouter':
+                      r = urllib.request.Request('https://openrouter.ai/api/v1/models',
+                          headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
+                  elif p == 'github_models':
+                      r = urllib.request.Request('https://api.github.com/user',
+                          headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
+                  elif p == 'deepseek':
+                      r = urllib.request.Request('https://api.deepseek.com/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'qwen':
+                      r = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',
+                          headers={'Authorization':'Bearer '+v})
+                  elif p == 'claude':
+                      r = urllib.request.Request('https://api.anthropic.com/v1/models',
+                          headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
+                  else:
+                      return 'unknown'
+                  urllib.request.urlopen(r, timeout=10)
+                  return 'ok'
+              except urllib.error.HTTPError as e:
+                  print('HTTP ' + str(e.code))
+                  return 'fail'
+              except Exception as e:
+                  print('err: ' + str(e))
+                  return 'fail'
+
+          now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+          ok_n = fail_n = 0
+          print('Checking ' + str(len(keys)) + ' keys at ' + now)
+
+          for k in keys:
+              print('  [' + k.get('provider','?') + '] ' + k.get('label','?')[:30] + ' ... ', end='', flush=True)
+              s = test(k)
+              k['status']    = s
+              k['lastCheck'] = now
+              print(s)
+              if s == 'ok': ok_n += 1
+              else: fail_n += 1
+
+          vault['keys']          = keys
+          vault['lastCloudCheck'] = now
+          vault['cloudSummary']  = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
+
+          patch = json.dumps({'files':{'apivault.json':{'content':json.dumps(vault,indent=2)}}}).encode()
+          api('https://api.github.com/gists/'+gist_id,'PATCH',patch)
+          print('Done: '+str(ok_n)+' valid, '+str(fail_n)+' failed.')
+          PYEOF
