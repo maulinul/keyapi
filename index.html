@@ -137,6 +137,7 @@ select{cursor:pointer}
 .kval{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--txt2);cursor:pointer;word-break:break-all;transition:color var(--tr)}
 .kval:hover{color:var(--accent)}
 .kmeta{font-size:10px;color:var(--txt3);margin-top:3px;font-family:'JetBrains Mono',monospace}
+.kdetail{font-size:10px;color:var(--red);margin-top:3px;font-family:'JetBrains Mono',monospace;word-break:break-word}
 .kactions{display:flex;align-items:center;gap:5px;flex-shrink:0}
 
 /* ── STATUS BADGES ───────────────────────────────────── */
@@ -574,13 +575,28 @@ function copyKey(id){
 
 // ══════════════════════════════════════
 // TEST — dengan CORS detection
+// Tier 1: ping ringan (list model). Tier 2 (hanya kalau tier 1 gagal):
+// random ping — completion sungguhan (max_tokens:1, prompt acak) untuk
+// buktikan key masih kepakai walau endpoint list model bermasalah.
 // ══════════════════════════════════════
-async function doTest(prov, val){
-  // github_models uses the settings GitHub Token for validation
-  // but the key itself is what's stored in vault
+const PING_PROMPTS=['hi','ping','ok','test','halo','cek'];
+const randPrompt=()=>PING_PROMPTS[Math.floor(Math.random()*PING_PROMPTS.length)];
+const PING_MODEL={groq:'llama-3.1-8b-instant',cerebras:'llama3.1-8b',mistral:'mistral-small-latest',
+  openrouter:'meta-llama/llama-3.2-3b-instruct:free',deepseek:'deepseek-chat',qwen:'qwen-turbo',
+  claude:'claude-haiku-4-5-20251001',github_models:'openai/gpt-4o-mini'};
+
+function isCORSErr(e){
+  return e instanceof TypeError || (e.message&&(e.message.includes('fetch')||e.message.includes('CORS')||e.message.includes('network')));
+}
+async function errMsg(r){
+  let msg='HTTP '+r.status;
+  try{const j=await r.json();msg+=' — '+(j.error?.message||j.error||j.message||'').toString().slice(0,140);}catch(_){}
+  return msg;
+}
+
+async function doPing(prov, val){
   try{
     let r;
-    const ghSettings = settings.ghToken;
     if(prov==='groq')
       r=await fetch('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+val}});
     else if(prov==='gemini')
@@ -599,26 +615,66 @@ async function doTest(prov, val){
       r=await fetch('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',{headers:{Authorization:'Bearer '+val}});
     else if(prov==='claude')
       r=await fetch('https://api.anthropic.com/v1/models',{headers:{'x-api-key':val,'anthropic-version':'2023-06-01'}});
-    else return 'unknown';
-    // HTTP response received (CORS not blocked)
-    if(r.ok) return 'ok';
-    if(r.status===401||r.status===403) return 'fail'; // auth error = key invalid
-    return 'fail';
+    else return {ok:false,msg:'Provider tidak dikenal'};
+    if(r.ok) return {ok:true};
+    return {ok:false,msg:await errMsg(r)};
   }catch(e){
-    // TypeError = Failed to fetch = CORS blocked or offline
-    const isCORS = e instanceof TypeError || (e.message&&(e.message.includes('fetch')||e.message.includes('CORS')||e.message.includes('network')));
-    return isCORS ? 'cors' : 'fail';
+    return {ok:false,cors:isCORSErr(e),msg:isCORSErr(e)?'Diblokir browser (CORS)':(e.message||'Gagal konek')};
   }
+}
+
+async function doCompletion(prov, val){
+  const prompt=randPrompt();
+  try{
+    let r;
+    if(['groq','cerebras','mistral','deepseek','qwen'].includes(prov)){
+      const base={groq:'https://api.groq.com/openai/v1/chat/completions',cerebras:'https://api.cerebras.ai/v1/chat/completions',
+        mistral:'https://api.mistral.ai/v1/chat/completions',deepseek:'https://api.deepseek.com/chat/completions',
+        qwen:'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions'}[prov];
+      r=await fetch(base,{method:'POST',headers:{Authorization:'Bearer '+val,'Content-Type':'application/json'},
+        body:JSON.stringify({model:PING_MODEL[prov],messages:[{role:'user',content:prompt}],max_tokens:1})});
+    }else if(prov==='openrouter'){
+      r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
+        headers:{Authorization:'Bearer '+val,'Content-Type':'application/json','HTTP-Referer':'https://github.com','X-Title':'API Key Vault'},
+        body:JSON.stringify({model:PING_MODEL.openrouter,messages:[{role:'user',content:prompt}],max_tokens:1})});
+    }else if(prov==='gemini'){
+      r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+val,
+        {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:1}})});
+    }else if(prov==='claude'){
+      r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+        headers:{'x-api-key':val,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','Content-Type':'application/json'},
+        body:JSON.stringify({model:PING_MODEL.claude,max_tokens:1,messages:[{role:'user',content:prompt}]})});
+    }else if(prov==='github_models'){
+      r=await fetch('https://models.github.ai/inference/chat/completions',{method:'POST',
+        headers:{Authorization:'Bearer '+val,'Content-Type':'application/json'},
+        body:JSON.stringify({model:PING_MODEL.github_models,messages:[{role:'user',content:prompt}],max_tokens:1})});
+    }else return {ok:false,msg:'Provider tidak dikenal'};
+    if(r.ok) return {ok:true};
+    return {ok:false,msg:await errMsg(r)};
+  }catch(e){
+    return {ok:false,cors:isCORSErr(e),msg:isCORSErr(e)?'Diblokir browser (CORS)':(e.message||'Gagal konek')};
+  }
+}
+
+async function doTest(prov, val){
+  const ping=await doPing(prov, val);
+  if(ping.ok) return {status:'ok',detail:'Ping OK'};
+  const comp=await doCompletion(prov, val);
+  if(comp.ok) return {status:'ok',detail:'Ping gagal, tapi random ping (completion) berhasil'};
+  const cors=ping.cors||comp.cors;
+  return {status:cors?'cors':'fail',
+    detail:'Ping: '+(ping.msg||'gagal')+' · Random ping: '+(comp.msg||'gagal')};
 }
 
 async function testKey(id){
   const k=keys.find(k=>k.id==id);if(!k)return;
   setStatus(id,'pending'); toast('Testing '+k.label+'...','inf');
-  const s=await doTest(k.provider,k.value);
-  k.status=s; k.lastCheck=new Date().toISOString(); saveKeys(); setStatus(id,s); updateStats();
-  if(s==='ok')   toast('✅ '+k.label+': Valid!','ok');
-  else if(s==='cors') toast('⚠️ '+k.label+': Diblokir browser (CORS) — key mungkin valid','inf');
-  else           toast('❌ '+k.label+': Tidak valid','err');
+  const res=await doTest(k.provider,k.value);
+  k.status=res.status; k.detail=res.detail; k.lastCheck=new Date().toISOString(); saveKeys(); render();
+  if(res.status==='ok')   toast('✅ '+k.label+': Valid! ('+res.detail+')','ok');
+  else if(res.status==='cors') toast('⚠️ '+k.label+': Diblokir browser (CORS) — key mungkin valid','inf');
+  else           toast('❌ '+k.label+': '+res.detail,'err');
 }
 async function testGroupKeys(prov){
   const grp=keys.filter(k=>k.provider===prov);
@@ -682,7 +738,7 @@ async function loadFromGist(){
     if(vault.keys){
       vault.keys.forEach(gk=>{
         const local=keys.find(k=>k.id==gk.id);
-        if(local){local.status=gk.status;local.lastCheck=gk.lastCheck;}
+        if(local){local.status=gk.status;local.lastCheck=gk.lastCheck;local.detail=gk.detail;}
         else keys.push(gk);
       });
     }
@@ -873,14 +929,16 @@ function keyItem(k){
   const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const last=k.lastCheck?new Date(k.lastCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):'—';
+  const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
   return `<div class="kitem" id="ki-${k.id}">
   <div class="kinfo">
     <div class="kname">${esc(k.label)}</div>
     <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
     <div class="kmeta">+ ${date} · cek: ${last}</div>
+    ${detailLine}
   </div>
   <div class="kactions">
-    <span class="sbadge s-${k.status}" id="sb-${k.id}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
+    <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
     <button class="btn btn-g btn-sm" onclick="testKey(${k.id})">⚡</button>
     <button class="btn btn-g btn-sm" onclick="copyKey(${k.id})">📋</button>
     <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})">🗑</button>
