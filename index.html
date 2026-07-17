@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B0C14">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔑</text></svg>'>
 <title>API Key Vault</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -240,6 +242,15 @@ select{cursor:pointer}
 .mpane h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin:2px 0 10px}
 .mpane h3.mt{margin-top:20px}
 
+/* ── FILTER BAR ──────────────────────────────────────── */
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 2px 12px}
+.fsearch{flex:1 1 180px;min-width:150px;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--glass-brd);border-radius:20px;padding:8px 15px;font-size:12.5px;color:var(--txt);outline:none;transition:border-color var(--tr),box-shadow var(--tr)}
+.fsearch:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,110,247,.13)}
+.fchips{display:flex;gap:5px;flex-wrap:wrap}
+.fchip{background:var(--glass);border:1px solid var(--glass-brd);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--txt2);transition:all var(--tr)}
+.fchip:hover{color:var(--txt);border-color:var(--accent)}
+.fchip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 3px 10px rgba(79,110,247,.35)}
+
 /* ── ENTRANCE + PULSE ────────────────────────────────── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes sdotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.5)}50%{box-shadow:0 0 0 4px rgba(245,158,11,0)}}
@@ -349,6 +360,16 @@ select{cursor:pointer}
     <h2>🔑 API Keys</h2>
     <button class="btn btn-p btn-sm" onclick="testAllKeys()">⚡ Test Semua</button>
   </div>
+  <div class="filterbar" id="filterBar" hidden>
+    <input class="fsearch" type="search" id="fSearch" placeholder="🔍 Cari label / provider..." oninput="setFilterQ(this.value)">
+    <div class="fchips">
+      <button class="fchip active" data-s="all" onclick="setFilterS('all')">Semua</button>
+      <button class="fchip" data-s="ok" onclick="setFilterS('ok')">✅ Valid</button>
+      <button class="fchip" data-s="fail" onclick="setFilterS('fail')">❌ Gagal</button>
+      <button class="fchip" data-s="cors" onclick="setFilterS('cors')">⚠ CORS</button>
+      <button class="fchip" data-s="unknown" onclick="setFilterS('unknown')">❔ Belum</button>
+    </div>
+  </div>
   <div class="groups" id="groupsWrap"></div>
 
 </div><!-- /.wrap -->
@@ -413,6 +434,15 @@ select{cursor:pointer}
         </div>
         <div style="margin-top:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);font-size:11.5px;color:var(--txt2);line-height:1.6">
           ℹ️ GitHub/Gist Token diambil otomatis dari tab <strong>Akses</strong>. Data vault disimpan ke <strong>private Gist</strong>.
+        </div>
+        <h3 class="mt">💾 Backup Lokal (File JSON)</h3>
+        <div class="sync-row" style="margin-top:0">
+          <button class="btn btn-g btn-sm" onclick="exportVault()">⬇️ Export JSON</button>
+          <button class="btn btn-g btn-sm" onclick="document.getElementById('impFile').click()">⬆️ Import JSON</button>
+          <input type="file" id="impFile" accept="application/json,.json" hidden onchange="importVault(this)">
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--txt3);line-height:1.5">
+          Export mengunduh seluruh vault (termasuk nilai key) sebagai file JSON. Simpan di tempat aman. Import menggabungkan isi file ke vault — key baru ditambahkan, key lama diperbarui statusnya.
         </div>
       </div>
 
@@ -491,8 +521,22 @@ const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * 
 // ══════════════════════════════════════
 let keys=[], settings={ghToken:'',gistToken:''};
 let isDark=false, localTimer=null, localOn=false, staggerNext=true;
+let fQ='', fS='all', batchMode=false;
 const col={};
 const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+// waktu relatif ringkas; nilai absolut tetap tersedia via title
+function rel(ts){
+  if(!ts) return '—';
+  const s=(Date.now()-new Date(ts).getTime())/1000;
+  if(s<0||isNaN(s)) return new Date(ts).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'});
+  if(s<60) return 'baru saja';
+  if(s<3600) return Math.floor(s/60)+' mnt lalu';
+  if(s<86400) return Math.floor(s/3600)+' jam lalu';
+  if(s<604800) return Math.floor(s/86400)+' hari lalu';
+  return new Date(ts).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+}
+const absTime=ts=>ts?new Date(ts).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}):'—';
 
 // ══════════════════════════════════════
 // PERSIST
@@ -644,6 +688,8 @@ function addKey(){
   const lbl=document.getElementById('inpLabel').value.trim();
   const val=document.getElementById('inpKey').value.trim();
   if(!val){toast('Masukkan API key terlebih dahulu','err');return;}
+  const dup=keys.find(k=>k.value===val);
+  if(dup){toast('⚠️ Key ini sudah tersimpan sebagai "'+dup.label+'" ('+P[dup.provider].name+')','err');return;}
   const n=keys.filter(k=>k.provider===prov).length+1;
   keys.push({id:Date.now()+Math.random(),provider:prov,
     label:lbl||(P[prov].name+' #'+n),
@@ -656,6 +702,14 @@ function addKey(){
 function deleteKey(id){
   if(!confirm('Hapus API key ini?'))return;
   keys=keys.filter(k=>k.id!=id); saveKeys(); render(); toast('Key dihapus','inf');
+}
+function editKey(id){
+  const k=keys.find(k=>k.id==id);if(!k)return;
+  const lbl=prompt('Label baru untuk key ini:',k.label);
+  if(lbl===null)return;
+  const t=lbl.trim();
+  if(!t){toast('Label tidak boleh kosong','err');return;}
+  k.label=t; saveKeys(); render(); toast('Label diubah ✓','ok');
 }
 
 // ══════════════════════════════════════
@@ -769,27 +823,43 @@ async function doTest(prov, val){
 
 async function testKey(id){
   const k=keys.find(k=>k.id==id);if(!k)return;
-  setStatus(id,'pending'); toast('Testing '+k.label+'...','inf');
+  setStatus(id,'pending');
+  if(!batchMode) toast('Testing '+k.label+'...','inf');
   const res=await doTest(k.provider,k.value);
   k.status=res.status; k.detail=res.detail; k.lastCheck=new Date().toISOString(); saveKeys(); render();
+  if(batchMode) return;
   if(res.status==='ok')   toast('✅ '+k.label+': Valid! ('+res.detail+')','ok');
   else if(res.status==='cors') toast('⚠️ '+k.label+': Diblokir browser (CORS) — key mungkin valid','inf');
   else           toast('❌ '+k.label+': '+res.detail,'err');
 }
+function batchSummary(list){
+  const ok=list.filter(k=>k.status==='ok').length;
+  const fail=list.filter(k=>k.status==='fail').length;
+  const cors=list.filter(k=>k.status==='cors').length;
+  toast('Selesai ✓ '+ok+' valid · '+fail+' gagal'+(cors?' · '+cors+' CORS':''), fail?'inf':'ok');
+}
+// Serial di dalam provider (aman rate-limit), paralel antar provider (cepat).
+async function runBatch(list){
+  if(batchMode) return;
+  batchMode=true; batchStart(list.length);
+  const byProv={};
+  list.forEach(k=>{(byProv[k.provider]=byProv[k.provider]||[]).push(k)});
+  await Promise.all(Object.values(byProv).map(async grp=>{
+    for(const k of grp){ await testKey(k.id); batchTick(); }
+  }));
+  batchEnd(); batchMode=false;
+  batchSummary(list);
+}
 async function testGroupKeys(prov){
   const grp=keys.filter(k=>k.provider===prov);
+  if(!grp.length)return;
   toast('Testing '+grp.length+' '+P[prov].name+' keys...','inf');
-  batchStart(grp.length);
-  for(const k of grp){ await testKey(k.id); batchTick(); }
-  batchEnd();
+  await runBatch(grp);
 }
 async function testAllKeys(){
   if(!keys.length){toast('Belum ada key','inf');return;}
   toast('Testing '+keys.length+' keys...','inf');
-  batchStart(keys.length);
-  for(const k of keys){ await testKey(k.id); batchTick(); }
-  batchEnd();
-  toast('Selesai ✓','ok');
+  await runBatch(keys.slice());
 }
 function setStatus(id,s){
   const el=document.getElementById('sb-'+id);if(!el)return;
@@ -864,6 +934,43 @@ function updateSyncStatus(){
   const last=localStorage.getItem('apivault_last_sync'), el=document.getElementById('syncStatus');
   if(last){el.textContent='✓ '+new Date(last).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'});el.classList.add('synced');}
   else{el.textContent='Belum sync';el.classList.remove('synced');}
+}
+
+// ══════════════════════════════════════
+// BACKUP LOKAL (EXPORT / IMPORT JSON)
+// ══════════════════════════════════════
+function exportVault(){
+  if(!keys.length){toast('Belum ada key untuk di-export','inf');return;}
+  const data=JSON.stringify({keys,savedAt:new Date().toISOString(),version:'2.1'},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='apivault-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  URL.revokeObjectURL(url);
+  toast('Vault di-export ('+keys.length+' key) ✓','ok');
+}
+function importVault(inp){
+  const f=inp.files&&inp.files[0];
+  inp.value='';
+  if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const vault=JSON.parse(rd.result);
+      const list=Array.isArray(vault)?vault:vault.keys;
+      if(!Array.isArray(list)) throw new Error('format tidak dikenal — butuh {keys:[...]}');
+      let added=0,updated=0,skipped=0;
+      for(const gk of list){
+        if(!gk||!gk.value||!gk.provider||!P[gk.provider]){skipped++;continue;}
+        const local=keys.find(k=>k.id==gk.id||k.value===gk.value);
+        if(local){local.status=gk.status||local.status;local.lastCheck=gk.lastCheck||local.lastCheck;local.detail=gk.detail||local.detail;updated++;}
+        else{keys.push(gk);added++;}
+      }
+      staggerNext=true; saveKeys(); render();
+      toast('Import ✓ '+added+' baru · '+updated+' diperbarui'+(skipped?' · '+skipped+' dilewati':''),'ok');
+    }catch(e){toast('Gagal import: '+e.message,'err');}
+  };
+  rd.readAsText(f);
 }
 
 // ══════════════════════════════════════
@@ -1078,15 +1185,27 @@ function updateStats(){
   setNum('st-cors',keys.filter(k=>k.status==='cors').length);
   setNum('st-prov',new Set(keys.map(k=>k.provider)).size);
 }
+const keyMatches=k=>
+  (fS==='all'||k.status===fS)&&
+  (!fQ||k.label.toLowerCase().includes(fQ)||P[k.provider].name.toLowerCase().includes(fQ)||k.provider.includes(fQ));
+function setFilterQ(v){ fQ=v.trim().toLowerCase(); renderGroups(); }
+function setFilterS(s){
+  fS=s;
+  document.querySelectorAll('.fchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s));
+  renderGroups();
+}
 function renderGroups(){
   const wrap=document.getElementById('groupsWrap');
+  document.getElementById('filterBar').hidden=!keys.length;
   const groups={};
-  for(const pk of Object.keys(P)){const g=keys.filter(k=>k.provider===pk);if(g.length)groups[pk]=g;}
+  for(const pk of Object.keys(P)){const g=keys.filter(k=>k.provider===pk&&keyMatches(k));if(g.length)groups[pk]=g;}
   const doStagger=staggerNext&&!reduceMotion;
   wrap.classList.toggle('stagger',doStagger);
   if(!Object.keys(groups).length){
     wrap.classList.remove('stagger');
-    wrap.innerHTML='<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';
+    wrap.innerHTML=keys.length
+      ?'<div class="pgroup"><div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada key yang cocok dengan filter.</p></div></div>'
+      :'<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';
     staggerNext=false;return;
   }
   let idx=0;
@@ -1106,20 +1225,20 @@ function renderGroups(){
 function keyItem(k,i=0){
   const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
-  const last=k.lastCheck?new Date(k.lastCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):'—';
   const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
   return `<div class="kitem" id="ki-${k.id}" style="--i:${i}">
   <div class="kinfo">
     <div class="kname">${esc(k.label)}</div>
     <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
-    <div class="kmeta">+ ${date} · cek: ${last}</div>
+    <div class="kmeta" title="Ditambahkan: ${date} · Cek terakhir: ${absTime(k.lastCheck)}">+ ${date} · cek: ${rel(k.lastCheck)}</div>
     ${detailLine}
   </div>
   <div class="kactions">
     <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
-    <button class="btn btn-g btn-sm" onclick="testKey(${k.id})">⚡</button>
-    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id})">📋</button>
-    <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})">🗑</button>
+    <button class="btn btn-g btn-sm" onclick="testKey(${k.id})" title="Test key">⚡</button>
+    <button class="btn btn-g btn-sm" onclick="editKey(${k.id})" title="Ubah label">✏️</button>
+    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id})" title="Salin key">📋</button>
+    <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})" title="Hapus key">🗑</button>
   </div>
 </div>`;
 }
@@ -1158,10 +1277,10 @@ function renderCloudBar(){
   let data=null;
   try{const d=localStorage.getItem('apivault_cloud');if(d)data=JSON.parse(d);}catch(_){}
   if(!data||!data.lastCloudCheck){el.hidden=true;return;}
-  const t=new Date(data.lastCloudCheck).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
   const s=data.cloudSummary||{};
   el.hidden=false;
-  el.innerHTML='<span class="cb-ico">☁️</span><span>Cloud check terakhir: <b class="cb-time">'+t+'</b></span>'
+  el.title='Cloud check: '+absTime(data.lastCloudCheck);
+  el.innerHTML='<span class="cb-ico">☁️</span><span>Cloud check terakhir: <b class="cb-time">'+rel(data.lastCloudCheck)+'</b></span>'
     +(s.total!=null?'<span>·</span><span class="cb-ok">✅ '+(s.ok||0)+'</span><span class="cb-fail">❌ '+(s.fail||0)+'</span><span class="cb-time">/ '+s.total+' key</span>':'');
 }
 
