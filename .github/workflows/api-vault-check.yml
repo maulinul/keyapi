@@ -10,6 +10,11 @@ on:
     - cron: '0 */12 * * *'
   workflow_dispatch:
 
+# Cegah dua run tumpang tindih menulis Gist yang sama.
+concurrency:
+  group: api-vault-check
+  cancel-in-progress: false
+
 jobs:
   check-keys:
     runs-on: ubuntu-latest
@@ -22,10 +27,16 @@ jobs:
           GIST_ID: ${{ secrets.VAULT_GIST_ID }}
         run: |
           python3 << 'PYEOF'
-          import urllib.request, urllib.error, json, os, time
+          import urllib.request, urllib.error, json, os, time, random
 
           token   = os.environ['GH_TOKEN']
           gist_id = os.environ['GIST_ID']
+
+          PING_MODEL = {
+              'groq':'llama-3.1-8b-instant','cerebras':'llama3.1-8b','mistral':'mistral-small-latest',
+              'openrouter':'meta-llama/llama-3.2-3b-instruct:free','deepseek':'deepseek-chat','qwen':'qwen-turbo',
+              'claude':'claude-haiku-4-5-20251001','github_models':'openai/gpt-4o-mini'}
+          PROMPTS = ['hi','ping','ok','test','halo','cek']
 
           def api(url, method='GET', data=None, hdrs={}):
               h = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'}
@@ -39,64 +50,109 @@ jobs:
           vault = json.loads(gist['files']['apivault.json']['content'])
           keys  = vault.get('keys', [])
 
+          # Tier 1: ping ringan (list model / auth check).
+          def ping(p, v):
+              if p == 'groq':
+                  req = urllib.request.Request('https://api.groq.com/openai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'gemini':
+                  req = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models?key='+v)
+              elif p == 'cerebras':
+                  req = urllib.request.Request('https://api.cerebras.ai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'mistral':
+                  req = urllib.request.Request('https://api.mistral.ai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'openrouter':
+                  req = urllib.request.Request('https://openrouter.ai/api/v1/models', headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
+              elif p == 'github_models':
+                  req = urllib.request.Request('https://api.github.com/user', headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
+              elif p == 'deepseek':
+                  req = urllib.request.Request('https://api.deepseek.com/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'qwen':
+                  req = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'claude':
+                  req = urllib.request.Request('https://api.anthropic.com/v1/models', headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
+              else:
+                  raise ValueError('unknown provider')
+              urllib.request.urlopen(req, timeout=12)
+
+          # Tier 2: random ping — completion sungguhan (max_tokens=1).
+          def completion(p, v):
+              prompt = random.choice(PROMPTS)
+              m = PING_MODEL.get(p)
+              if p in ('groq','cerebras','mistral','deepseek','qwen'):
+                  base = {'groq':'https://api.groq.com/openai/v1/chat/completions',
+                          'cerebras':'https://api.cerebras.ai/v1/chat/completions',
+                          'mistral':'https://api.mistral.ai/v1/chat/completions',
+                          'deepseek':'https://api.deepseek.com/chat/completions',
+                          'qwen':'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions'}[p]
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request(base, data=data, headers={'Authorization':'Bearer '+v,'Content-Type':'application/json'})
+              elif p == 'openrouter':
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request('https://openrouter.ai/api/v1/chat/completions', data=data,
+                          headers={'Authorization':'Bearer '+v,'Content-Type':'application/json','HTTP-Referer':'https://github.com','X-Title':'API Key Vault'})
+              elif p == 'gemini':
+                  data = json.dumps({'contents':[{'parts':[{'text':prompt}]}],'generationConfig':{'maxOutputTokens':1}}).encode()
+                  req  = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+v,
+                          data=data, headers={'Content-Type':'application/json'})
+              elif p == 'claude':
+                  data = json.dumps({'model':m,'max_tokens':1,'messages':[{'role':'user','content':prompt}]}).encode()
+                  req  = urllib.request.Request('https://api.anthropic.com/v1/messages', data=data,
+                          headers={'x-api-key':v,'anthropic-version':'2023-06-01','Content-Type':'application/json'})
+              elif p == 'github_models':
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request('https://models.github.ai/inference/chat/completions', data=data,
+                          headers={'Authorization':'Bearer '+v,'Content-Type':'application/json'})
+              else:
+                  raise ValueError('unknown provider')
+              urllib.request.urlopen(req, timeout=15)
+
           def test(k):
-              p, v = k['provider'], k['value']
+              p, v = k.get('provider'), k.get('value')
               try:
-                  if p == 'groq':
-                      r = urllib.request.Request('https://api.groq.com/openai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'gemini':
-                      r = 'https://generativelanguage.googleapis.com/v1beta/models?key='+v
-                  elif p == 'cerebras':
-                      r = urllib.request.Request('https://api.cerebras.ai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'mistral':
-                      r = urllib.request.Request('https://api.mistral.ai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'openrouter':
-                      r = urllib.request.Request('https://openrouter.ai/api/v1/models',
-                          headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
-                  elif p == 'github_models':
-                      r = urllib.request.Request('https://api.github.com/user',
-                          headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
-                  elif p == 'deepseek':
-                      r = urllib.request.Request('https://api.deepseek.com/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'qwen':
-                      r = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'claude':
-                      r = urllib.request.Request('https://api.anthropic.com/v1/models',
-                          headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
-                  else:
-                      return 'unknown'
-                  urllib.request.urlopen(r, timeout=10)
-                  return 'ok'
+                  ping(p, v)
+                  return 'ok', 'ping'
               except urllib.error.HTTPError as e:
-                  print('HTTP ' + str(e.code))
-                  return 'fail'
+                  ping_msg = 'HTTP ' + str(e.code)
               except Exception as e:
-                  print('err: ' + str(e))
-                  return 'fail'
+                  ping_msg = str(e)[:80]
+              try:
+                  completion(p, v)
+                  return 'ok', 'completion (ping: ' + ping_msg + ')'
+              except urllib.error.HTTPError as e:
+                  return 'fail', 'ping ' + ping_msg + ' / comp HTTP ' + str(e.code)
+              except Exception as e:
+                  return 'fail', 'ping ' + ping_msg + ' / comp ' + str(e)[:80]
 
           now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
           ok_n = fail_n = 0
           print('Checking ' + str(len(keys)) + ' keys at ' + now)
 
           for k in keys:
-              print('  [' + k.get('provider','?') + '] ' + k.get('label','?')[:30] + ' ... ', end='', flush=True)
-              s = test(k)
+              print('  [' + k.get('provider','?') + '] ' + str(k.get('label','?'))[:30] + ' ... ', end='', flush=True)
+              s, detail = test(k)
               k['status']    = s
               k['lastCheck'] = now
-              print(s)
+              k['detail']    = detail
+              print(s + ' (' + detail + ')')
               if s == 'ok': ok_n += 1
               else: fail_n += 1
 
-          vault['keys']          = keys
+          vault['keys']           = keys
           vault['lastCloudCheck'] = now
-          vault['cloudSummary']  = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
+          vault['cloudSummary']   = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
 
           patch = json.dumps({'files':{'apivault.json':{'content':json.dumps(vault,indent=2)}}}).encode()
           api('https://api.github.com/gists/'+gist_id,'PATCH',patch)
           print('Done: '+str(ok_n)+' valid, '+str(fail_n)+' failed.')
+
+          summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary:
+              lines = ['## 🔑 API Key Vault — Health Check', '',
+                       '| Metric | Value |', '|---|---|',
+                       '| Checked at | `' + now + '` |',
+                       '| ✅ Valid | **' + str(ok_n) + '** |',
+                       '| ❌ Failed | **' + str(fail_n) + '** |',
+                       '| Total | ' + str(len(keys)) + ' |']
+              with open(summary, 'a') as f:
+                  f.write(chr(10).join(lines) + chr(10))
           PYEOF

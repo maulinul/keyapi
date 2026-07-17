@@ -55,7 +55,9 @@ select,input{font-family:inherit}
 .card-body{padding:16px 18px}
 .card-chevron{font-size:11px;color:var(--txt3);transition:transform var(--tr)}
 .card-chevron.open{transform:rotate(180deg)}
-.card-body-wrap{overflow:hidden;transition:max-height .3s ease}
+/* collapsible wrappers — smooth height/opacity */
+#settingsBody,#syncBody,#cloudBody,.pbody{overflow:hidden;transition:max-height .32s ease,opacity .28s ease}
+.pbody.collapsed{max-height:0!important;opacity:0}
 
 /* ── SETTINGS ────────────────────────────────────────── */
 .set-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
@@ -186,6 +188,30 @@ select{cursor:pointer}
 @keyframes tIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
 @keyframes tOut{to{transform:translateX(110%);opacity:0}}
 
+/* ── TEST PROGRESS BAR ───────────────────────────────── */
+.testbar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),#8B5CF6);z-index:9999;opacity:0;box-shadow:0 0 8px rgba(79,110,247,.55);transition:width .25s ease,opacity .3s ease}
+.testbar.active{opacity:1}
+
+/* ── CLOUD CHECK INFO ────────────────────────────────── */
+.cloudbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:10px 16px;margin-bottom:20px;font-size:12px;color:var(--txt2);animation:fadeUp .35s ease backwards}
+.cloudbar b{color:var(--txt)}
+.cloudbar .cb-ico{font-size:15px}
+.cloudbar .cb-ok{color:#12B76A;font-weight:600;font-family:'JetBrains Mono',monospace}
+.cloudbar .cb-fail{color:#E8475F;font-weight:600;font-family:'JetBrains Mono',monospace}
+.cloudbar .cb-time{font-family:'JetBrains Mono',monospace;color:var(--txt3)}
+
+/* ── ENTRANCE + PULSE ────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes sdotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.5)}50%{box-shadow:0 0 0 4px rgba(245,158,11,0)}}
+.stagger .kitem{animation:fadeUp .32s ease backwards;animation-delay:calc(var(--i,0)*32ms)}
+.s-pending .sdot{animation:sdotPulse 1.1s ease-in-out infinite}
+.snum{transition:color var(--tr)}
+
+/* ── REDUCED MOTION ──────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media(max-width:640px){
   .stats{grid-template-columns:repeat(3,1fr)}
@@ -199,6 +225,7 @@ select{cursor:pointer}
 </style>
 </head>
 <body>
+<div class="testbar" id="testBar"></div>
 
 <!-- TOPBAR -->
 <header class="topbar">
@@ -224,6 +251,9 @@ select{cursor:pointer}
     <div class="stat"><div class="slbl">CORS</div><div class="snum" id="st-cors" style="color:#6366F1">0</div><div class="ssub">blokir browser</div></div>
     <div class="stat"><div class="slbl">Provider</div><div class="snum" id="st-prov">0</div><div class="ssub">terhubung</div></div>
   </div>
+
+  <!-- CLOUD CHECK INFO -->
+  <div class="cloudbar" id="cloudBar" hidden></div>
 
   <!-- SETTINGS CARD -->
   <div class="card" id="settingsCard">
@@ -417,8 +447,9 @@ const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * 
 // STATE
 // ══════════════════════════════════════
 let keys=[], settings={ghToken:'',gistToken:''};
-let isDark=false, localTimer=null, localOn=false;
+let isDark=false, localTimer=null, localOn=false, staggerNext=true;
 const col={};
+const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 // ══════════════════════════════════════
 // PERSIST
@@ -454,12 +485,28 @@ function toggleTheme(){
 // ══════════════════════════════════════
 // CARD COLLAPSE
 // ══════════════════════════════════════
+// Animated collapse: tween max-height between 0 and content height.
+function setCollapse(el, show){
+  if(!el) return;
+  if(reduceMotion){ el.style.maxHeight=''; el.style.opacity=''; el.hidden=!show; return; }
+  el.hidden=false;
+  if(show){
+    el.style.maxHeight=el.scrollHeight+'px';
+    el.style.opacity='1';
+    const done=ev=>{ if(ev.propertyName==='max-height'){el.style.maxHeight='none';el.removeEventListener('transitionend',done);} };
+    el.addEventListener('transitionend',done);
+  }else{
+    el.style.maxHeight=el.scrollHeight+'px';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.maxHeight='0px';el.style.opacity='0';}));
+  }
+}
 function toggleCard(bodyId, chevId){
   const body=document.getElementById(bodyId), chev=document.getElementById(chevId);
   if(!body) return;
-  const hidden=body.style.display==='none';
-  body.style.display=hidden?'':'none';
-  if(chev) chev.classList.toggle('open',hidden);
+  const willOpen=body.dataset.collapsed==='1';
+  setCollapse(body, willOpen);
+  body.dataset.collapsed=willOpen?'0':'1';
+  if(chev) chev.classList.toggle('open',willOpen);
 }
 
 // ══════════════════════════════════════
@@ -490,7 +537,7 @@ function saveSettings(){
   if(settings.ghToken){
     const body=document.getElementById('settingsBody');
     const chev=document.getElementById('settingsChev');
-    if(body&&body.style.display!=='none'){body.style.display='none';chev.classList.remove('open');}
+    if(body&&body.dataset.collapsed!=='1'){setCollapse(body,false);body.dataset.collapsed='1';chev.classList.remove('open');}
   }
 }
 function toggleSetEye(inputId, btn){
@@ -551,7 +598,7 @@ function addKey(){
   saveKeys();
   document.getElementById('inpLabel').value='';
   document.getElementById('inpKey').value='';
-  render(); toast('Key ditambahkan ✓','ok');
+  staggerNext=true; render(); toast('Key ditambahkan ✓','ok');
 }
 function deleteKey(id){
   if(!confirm('Hapus API key ini?'))return;
@@ -679,12 +726,16 @@ async function testKey(id){
 async function testGroupKeys(prov){
   const grp=keys.filter(k=>k.provider===prov);
   toast('Testing '+grp.length+' '+P[prov].name+' keys...','inf');
-  for(const k of grp) await testKey(k.id);
+  batchStart(grp.length);
+  for(const k of grp){ await testKey(k.id); batchTick(); }
+  batchEnd();
 }
 async function testAllKeys(){
   if(!keys.length){toast('Belum ada key','inf');return;}
   toast('Testing '+keys.length+' keys...','inf');
-  for(const k of keys) await testKey(k.id);
+  batchStart(keys.length);
+  for(const k of keys){ await testKey(k.id); batchTick(); }
+  batchEnd();
   toast('Selesai ✓','ok');
 }
 function setStatus(id,s){
@@ -745,7 +796,10 @@ async function loadFromGist(){
     localStorage.setItem('apivault_gist_id',gistId);
     localStorage.setItem('apivault_last_sync',new Date().toISOString());
     document.getElementById('inpGistId').value=gistId;
-    saveKeys(); render(); updateSyncStatus();
+    if(vault.lastCloudCheck||vault.cloudSummary){
+      localStorage.setItem('apivault_cloud',JSON.stringify({lastCloudCheck:vault.lastCloudCheck,cloudSummary:vault.cloudSummary}));
+    }
+    staggerNext=true; saveKeys(); render(); updateSyncStatus(); renderCloudBar();
     const last=vault.lastCloudCheck?new Date(vault.lastCloudCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):null;
     toast('Vault dimuat ✓'+(last?' · Cloud check: '+last:''),'ok');
   }catch(e){toast('Error: '+e.message,'err');}
@@ -778,6 +832,11 @@ on:
     - cron: '${cron}'
   workflow_dispatch:
 
+# Cegah dua run tumpang tindih menulis Gist yang sama.
+concurrency:
+  group: api-vault-check
+  cancel-in-progress: false
+
 jobs:
   check-keys:
     runs-on: ubuntu-latest
@@ -790,10 +849,16 @@ jobs:
           GIST_ID: \${{ secrets.VAULT_GIST_ID }}
         run: |
           python3 << 'PYEOF'
-          import urllib.request, urllib.error, json, os, time
+          import urllib.request, urllib.error, json, os, time, random
 
           token   = os.environ['GH_TOKEN']
           gist_id = os.environ['GIST_ID']
+
+          PING_MODEL = {
+              'groq':'llama-3.1-8b-instant','cerebras':'llama3.1-8b','mistral':'mistral-small-latest',
+              'openrouter':'meta-llama/llama-3.2-3b-instruct:free','deepseek':'deepseek-chat','qwen':'qwen-turbo',
+              'claude':'claude-haiku-4-5-20251001','github_models':'openai/gpt-4o-mini'}
+          PROMPTS = ['hi','ping','ok','test','halo','cek']
 
           def api(url, method='GET', data=None, hdrs={}):
               h = {'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'}
@@ -807,66 +872,111 @@ jobs:
           vault = json.loads(gist['files']['apivault.json']['content'])
           keys  = vault.get('keys', [])
 
+          # Tier 1: ping ringan (list model / auth check).
+          def ping(p, v):
+              if p == 'groq':
+                  req = urllib.request.Request('https://api.groq.com/openai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'gemini':
+                  req = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models?key='+v)
+              elif p == 'cerebras':
+                  req = urllib.request.Request('https://api.cerebras.ai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'mistral':
+                  req = urllib.request.Request('https://api.mistral.ai/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'openrouter':
+                  req = urllib.request.Request('https://openrouter.ai/api/v1/models', headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
+              elif p == 'github_models':
+                  req = urllib.request.Request('https://api.github.com/user', headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
+              elif p == 'deepseek':
+                  req = urllib.request.Request('https://api.deepseek.com/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'qwen':
+                  req = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models', headers={'Authorization':'Bearer '+v})
+              elif p == 'claude':
+                  req = urllib.request.Request('https://api.anthropic.com/v1/models', headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
+              else:
+                  raise ValueError('unknown provider')
+              urllib.request.urlopen(req, timeout=12)
+
+          # Tier 2: random ping — completion sungguhan (max_tokens=1).
+          def completion(p, v):
+              prompt = random.choice(PROMPTS)
+              m = PING_MODEL.get(p)
+              if p in ('groq','cerebras','mistral','deepseek','qwen'):
+                  base = {'groq':'https://api.groq.com/openai/v1/chat/completions',
+                          'cerebras':'https://api.cerebras.ai/v1/chat/completions',
+                          'mistral':'https://api.mistral.ai/v1/chat/completions',
+                          'deepseek':'https://api.deepseek.com/chat/completions',
+                          'qwen':'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions'}[p]
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request(base, data=data, headers={'Authorization':'Bearer '+v,'Content-Type':'application/json'})
+              elif p == 'openrouter':
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request('https://openrouter.ai/api/v1/chat/completions', data=data,
+                          headers={'Authorization':'Bearer '+v,'Content-Type':'application/json','HTTP-Referer':'https://github.com','X-Title':'API Key Vault'})
+              elif p == 'gemini':
+                  data = json.dumps({'contents':[{'parts':[{'text':prompt}]}],'generationConfig':{'maxOutputTokens':1}}).encode()
+                  req  = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+v,
+                          data=data, headers={'Content-Type':'application/json'})
+              elif p == 'claude':
+                  data = json.dumps({'model':m,'max_tokens':1,'messages':[{'role':'user','content':prompt}]}).encode()
+                  req  = urllib.request.Request('https://api.anthropic.com/v1/messages', data=data,
+                          headers={'x-api-key':v,'anthropic-version':'2023-06-01','Content-Type':'application/json'})
+              elif p == 'github_models':
+                  data = json.dumps({'model':m,'messages':[{'role':'user','content':prompt}],'max_tokens':1}).encode()
+                  req  = urllib.request.Request('https://models.github.ai/inference/chat/completions', data=data,
+                          headers={'Authorization':'Bearer '+v,'Content-Type':'application/json'})
+              else:
+                  raise ValueError('unknown provider')
+              urllib.request.urlopen(req, timeout=15)
+
           def test(k):
-              p, v = k['provider'], k['value']
+              p, v = k.get('provider'), k.get('value')
               try:
-                  if p == 'groq':
-                      r = urllib.request.Request('https://api.groq.com/openai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'gemini':
-                      r = 'https://generativelanguage.googleapis.com/v1beta/models?key='+v
-                  elif p == 'cerebras':
-                      r = urllib.request.Request('https://api.cerebras.ai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'mistral':
-                      r = urllib.request.Request('https://api.mistral.ai/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'openrouter':
-                      r = urllib.request.Request('https://openrouter.ai/api/v1/models',
-                          headers={'Authorization':'Bearer '+v,'HTTP-Referer':'https://github.com'})
-                  elif p == 'github_models':
-                      r = urllib.request.Request('https://api.github.com/user',
-                          headers={'Authorization':'token '+v,'Accept':'application/vnd.github.v3+json'})
-                  elif p == 'deepseek':
-                      r = urllib.request.Request('https://api.deepseek.com/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'qwen':
-                      r = urllib.request.Request('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models',
-                          headers={'Authorization':'Bearer '+v})
-                  elif p == 'claude':
-                      r = urllib.request.Request('https://api.anthropic.com/v1/models',
-                          headers={'x-api-key':v,'anthropic-version':'2023-06-01'})
-                  else:
-                      return 'unknown'
-                  urllib.request.urlopen(r, timeout=10)
-                  return 'ok'
+                  ping(p, v)
+                  return 'ok', 'ping'
               except urllib.error.HTTPError as e:
-                  print('HTTP ' + str(e.code))
-                  return 'fail'
+                  ping_msg = 'HTTP ' + str(e.code)
               except Exception as e:
-                  print('err: ' + str(e))
-                  return 'fail'
+                  ping_msg = str(e)[:80]
+              try:
+                  completion(p, v)
+                  return 'ok', 'completion (ping: ' + ping_msg + ')'
+              except urllib.error.HTTPError as e:
+                  return 'fail', 'ping ' + ping_msg + ' / comp HTTP ' + str(e.code)
+              except Exception as e:
+                  return 'fail', 'ping ' + ping_msg + ' / comp ' + str(e)[:80]
 
           now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
           ok_n = fail_n = 0
           print('Checking ' + str(len(keys)) + ' keys at ' + now)
 
           for k in keys:
-              print('  [' + k.get('provider','?') + '] ' + k.get('label','?')[:30] + ' ... ', end='', flush=True)
-              s = test(k)
+              print('  [' + k.get('provider','?') + '] ' + str(k.get('label','?'))[:30] + ' ... ', end='', flush=True)
+              s, detail = test(k)
               k['status']    = s
               k['lastCheck'] = now
-              print(s)
+              k['detail']    = detail
+              print(s + ' (' + detail + ')')
               if s == 'ok': ok_n += 1
               else: fail_n += 1
 
-          vault['keys']          = keys
+          vault['keys']           = keys
           vault['lastCloudCheck'] = now
-          vault['cloudSummary']  = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
+          vault['cloudSummary']   = {'ok':ok_n,'fail':fail_n,'total':len(keys)}
 
           patch = json.dumps({'files':{'apivault.json':{'content':json.dumps(vault,indent=2)}}}).encode()
           api('https://api.github.com/gists/'+gist_id,'PATCH',patch)
           print('Done: '+str(ok_n)+' valid, '+str(fail_n)+' failed.')
+
+          summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary:
+              lines = ['## 🔑 API Key Vault — Health Check', '',
+                       '| Metric | Value |', '|---|---|',
+                       '| Checked at | \`' + now + '\` |',
+                       '| ✅ Valid | **' + str(ok_n) + '** |',
+                       '| ❌ Failed | **' + str(fail_n) + '** |',
+                       '| Total | ' + str(len(keys)) + ' |']
+              with open(summary, 'a') as f:
+                  f.write(chr(10).join(lines) + chr(10))
           PYEOF
 `;
   const blob=new Blob([yaml],{type:'text/yaml'});
@@ -900,20 +1010,33 @@ function toggleLocalSched(){
 // RENDER
 // ══════════════════════════════════════
 const render=()=>{updateStats();renderGroups();};
+function setNum(id,val){
+  const el=document.getElementById(id);if(!el)return;
+  const cur=parseInt(el.textContent,10)||0;
+  if(reduceMotion||cur===val){el.textContent=val;return;}
+  const start=performance.now(),from=cur,dur=380;
+  const step=t=>{const p=Math.min(1,(t-start)/dur);el.textContent=Math.round(from+(val-from)*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+}
 function updateStats(){
-  document.getElementById('st-total').textContent=keys.length;
-  document.getElementById('st-ok').textContent=keys.filter(k=>k.status==='ok').length;
-  document.getElementById('st-fail').textContent=keys.filter(k=>k.status==='fail').length;
-  document.getElementById('st-cors').textContent=keys.filter(k=>k.status==='cors').length;
-  document.getElementById('st-prov').textContent=new Set(keys.map(k=>k.provider)).size;
+  setNum('st-total',keys.length);
+  setNum('st-ok',keys.filter(k=>k.status==='ok').length);
+  setNum('st-fail',keys.filter(k=>k.status==='fail').length);
+  setNum('st-cors',keys.filter(k=>k.status==='cors').length);
+  setNum('st-prov',new Set(keys.map(k=>k.provider)).size);
 }
 function renderGroups(){
   const wrap=document.getElementById('groupsWrap');
   const groups={};
   for(const pk of Object.keys(P)){const g=keys.filter(k=>k.provider===pk);if(g.length)groups[pk]=g;}
+  const doStagger=staggerNext&&!reduceMotion;
+  wrap.classList.toggle('stagger',doStagger);
   if(!Object.keys(groups).length){
-    wrap.innerHTML='<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';return;
+    wrap.classList.remove('stagger');
+    wrap.innerHTML='<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';
+    staggerNext=false;return;
   }
+  let idx=0;
   wrap.innerHTML=Object.entries(groups).map(([pk,grp])=>{
     const p=P[pk],open=!col[pk];
     return `<div class="pgroup">
@@ -921,16 +1044,18 @@ function renderGroups(){
     <div class="phead-l"><span class="pbadge ${p.badge}">${p.icon} ${p.name}</span><span class="pcount">${grp.length} key${grp.length>1?'s':''}</span></div>
     <div class="phead-r"><button class="btn btn-g btn-sm" onclick="event.stopPropagation();testGroupKeys('${pk}')">⚡ Test semua</button><span class="chev ${open?'open':''}" id="chev-${pk}">▼</span></div>
   </div>
-  <div class="pbody" id="pb-${pk}" ${open?'':'style="display:none"'}>${grp.map(k=>keyItem(k)).join('')}</div>
+  <div class="pbody${open?'':' collapsed'}" id="pb-${pk}" data-collapsed="${open?'0':'1'}">${grp.map(k=>keyItem(k,idx++)).join('')}</div>
 </div>`;
   }).join('');
+  if(doStagger) setTimeout(()=>wrap.classList.remove('stagger'),800);
+  staggerNext=false;
 }
-function keyItem(k){
+function keyItem(k,i=0){
   const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const last=k.lastCheck?new Date(k.lastCheck).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'}):'—';
   const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
-  return `<div class="kitem" id="ki-${k.id}">
+  return `<div class="kitem" id="ki-${k.id}" style="--i:${i}">
   <div class="kinfo">
     <div class="kname">${esc(k.label)}</div>
     <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
@@ -947,9 +1072,10 @@ function keyItem(k){
 }
 function toggleGroup(pk){
   col[pk]=!col[pk];
+  const open=!col[pk];
   const body=document.getElementById('pb-'+pk),chev=document.getElementById('chev-'+pk);
-  if(body) body.style.display=col[pk]?'none':'';
-  if(chev) chev.classList.toggle('open',!col[pk]);
+  if(body){ body.classList.remove('collapsed'); setCollapse(body,open); body.dataset.collapsed=open?'0':'1'; }
+  if(chev) chev.classList.toggle('open',open);
 }
 
 // ══════════════════════════════════════
@@ -964,6 +1090,29 @@ function toast(msg,type='inf'){
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ══════════════════════════════════════
+// BATCH TEST PROGRESS BAR
+// ══════════════════════════════════════
+let _batchTotal=0,_batchDone=0;
+function batchStart(total){_batchTotal=total||1;_batchDone=0;const b=document.getElementById('testBar');b.classList.add('active');b.style.width='3%';}
+function batchTick(){_batchDone++;const b=document.getElementById('testBar');b.style.width=Math.min(100,Math.round(_batchDone/_batchTotal*100))+'%';}
+function batchEnd(){const b=document.getElementById('testBar');b.style.width='100%';setTimeout(()=>{b.classList.remove('active');setTimeout(()=>{b.style.width='0'},320);},380);}
+
+// ══════════════════════════════════════
+// CLOUD CHECK INFO BAR
+// ══════════════════════════════════════
+function renderCloudBar(){
+  const el=document.getElementById('cloudBar');if(!el)return;
+  let data=null;
+  try{const d=localStorage.getItem('apivault_cloud');if(d)data=JSON.parse(d);}catch(_){}
+  if(!data||!data.lastCloudCheck){el.hidden=true;return;}
+  const t=new Date(data.lastCloudCheck).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+  const s=data.cloudSummary||{};
+  el.hidden=false;
+  el.innerHTML='<span class="cb-ico">☁️</span><span>Cloud check terakhir: <b class="cb-time">'+t+'</b></span>'
+    +(s.total!=null?'<span>·</span><span class="cb-ok">✅ '+(s.ok||0)+'</span><span class="cb-fail">❌ '+(s.fail||0)+'</span><span class="cb-time">/ '+s.total+' key</span>':'');
+}
+
+// ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
@@ -974,13 +1123,13 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   const gid=localStorage.getItem('apivault_gist_id');
   if(gid) document.getElementById('inpGistId').value=gid;
-  // Auto-collapse settings if already set
+  // Auto-collapse settings if already set (no animation on first paint)
   if(settings.ghToken){
     const body=document.getElementById('settingsBody');
     const chev=document.getElementById('settingsChev');
-    if(body){body.style.display='none';chev.classList.remove('open');}
+    if(body){body.style.maxHeight='0px';body.style.opacity='0';body.dataset.collapsed='1';chev.classList.remove('open');}
   }
-  render(); renderSettings(); updateProvInfo(); updateSyncStatus();
+  render(); renderSettings(); updateProvInfo(); updateSyncStatus(); renderCloudBar();
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
 });
 </script>
