@@ -15,48 +15,58 @@
   --r:10px;--rsm:6px;
   --sh:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
   --shm:0 4px 14px rgba(0,0,0,.10);--tr:.22s ease;
+  --glass:rgba(255,255,255,.74);--glass-brd:rgba(255,255,255,.6);
+  --glow1:rgba(79,110,247,.18);--glow2:rgba(139,92,246,.15);--particle:79,110,247;
 }
 [data-theme="dark"]{
-  --bg:#10111A;--surface:#181924;--surface2:#1F2133;--border:#2B2D40;
+  --bg:#0B0C14;--surface:#181924;--surface2:#1F2133;--border:#2B2D40;
   --txt:#E4E6F0;--txt2:#8B8FA8;--txt3:#5A5E72;
   --sh:0 1px 4px rgba(0,0,0,.25),0 1px 2px rgba(0,0,0,.2);
   --shm:0 4px 14px rgba(0,0,0,.4);
+  --glass:rgba(22,24,36,.62);--glass-brd:rgba(255,255,255,.07);
+  --glow1:rgba(79,110,247,.22);--glow2:rgba(139,92,246,.20);--particle:130,150,255;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background var(--tr),color var(--tr);padding-bottom:80px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background var(--tr),color var(--tr);padding-bottom:40px;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(1200px 620px at 12% -12%,var(--glow1),transparent 60%),
+             radial-gradient(1000px 520px at 100% -5%,var(--glow2),transparent 55%),
+             radial-gradient(900px 500px at 50% 120%,var(--glow1),transparent 60%)}
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
 button{font-family:inherit;cursor:pointer}
 select,input{font-family:inherit}
 
 /* ── TOPBAR ──────────────────────────────────────────── */
-.topbar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--sh);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#4F6EF7,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.logo h1{font-size:16px;font-weight:700;line-height:1.1}
+.topbar{position:sticky;top:0;z-index:200;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-bottom:1px solid var(--glass-brd);box-shadow:var(--sh);display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:58px}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4F6EF7,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 14px rgba(79,110,247,.4)}
+.logo h1{font-size:16px;font-weight:800;line-height:1.1;background:linear-gradient(90deg,var(--txt),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.01em}
 .logo span{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
 .topbar-r{display:flex;align-items:center;gap:8px}
-.theme-btn{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:500;color:var(--txt2);transition:all var(--tr)}
-.theme-btn:hover{background:var(--border);color:var(--txt)}
+.tbtn{position:relative;display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--txt2);transition:all var(--tr)}
+.tbtn:hover{background:var(--border);color:var(--txt);transform:translateY(-1px);box-shadow:var(--shm)}
+.tbtn .ic{font-size:14px;line-height:1}
+.tbtn-ico{padding:8px 11px}
+.tbtn-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--surface);display:none}
+.tbtn-dot.on{display:block}
+@keyframes spin{to{transform:rotate(90deg)}}
+.tbtn:hover .gear{animation:spin .4s ease}
 
 /* ── LAYOUT ──────────────────────────────────────────── */
-.wrap{max-width:940px;margin:0 auto;padding:24px 16px}
+.wrap{max-width:960px;margin:0 auto;padding:22px 16px;position:relative;z-index:2}
+.section-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 2px 12px}
+.section-bar h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3)}
 
 /* ── STATS ───────────────────────────────────────────── */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;box-shadow:var(--sh)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--glass-brd);border-radius:var(--r);padding:13px 16px;box-shadow:var(--sh);transition:transform var(--tr),box-shadow var(--tr)}
+.stat:hover{transform:translateY(-2px);box-shadow:var(--shm)}
 .slbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin-bottom:4px}
 .snum{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
 .ssub{font-size:10px;color:var(--txt3);margin-top:3px}
 
-/* ── CARD ────────────────────────────────────────────── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:14px}
-.card-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;cursor:pointer;user-select:none;transition:background var(--tr)}
-.card-head:hover{background:var(--surface2)}
-.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);display:flex;align-items:center;gap:8px}
-.card-body{padding:16px 18px}
-.card-chevron{font-size:11px;color:var(--txt3);transition:transform var(--tr)}
-.card-chevron.open{transform:rotate(180deg)}
-/* collapsible wrappers — smooth height/opacity */
-#settingsBody,#syncBody,#cloudBody,.pbody{overflow:hidden;transition:max-height .32s ease,opacity .28s ease}
+/* ── COLLAPSIBLE ─────────────────────────────────────── */
+.pbody{overflow:hidden;transition:max-height .32s ease,opacity .28s ease}
 .pbody.collapsed{max-height:0!important;opacity:0}
 
 /* ── SETTINGS ────────────────────────────────────────── */
@@ -110,7 +120,8 @@ select{cursor:pointer}
 
 /* ── GROUPS ──────────────────────────────────────────── */
 .groups{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
-.pgroup{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.pgroup{background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--glass-brd);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow var(--tr)}
+.pgroup:hover{box-shadow:var(--shm)}
 .phead{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none;transition:background var(--tr)}
 .phead:hover{background:var(--surface2)}
 .phead-l{display:flex;align-items:center;gap:10px}
@@ -193,12 +204,41 @@ select{cursor:pointer}
 .testbar.active{opacity:1}
 
 /* ── CLOUD CHECK INFO ────────────────────────────────── */
-.cloudbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:10px 16px;margin-bottom:20px;font-size:12px;color:var(--txt2);animation:fadeUp .35s ease backwards}
+.cloudbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--glass-brd);border-radius:var(--r);box-shadow:var(--sh);padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--txt2);animation:fadeUp .35s ease backwards}
 .cloudbar b{color:var(--txt)}
 .cloudbar .cb-ico{font-size:15px}
 .cloudbar .cb-ok{color:#12B76A;font-weight:600;font-family:'JetBrains Mono',monospace}
 .cloudbar .cb-fail{color:#E8475F;font-weight:600;font-family:'JetBrains Mono',monospace}
 .cloudbar .cb-time{font-family:'JetBrains Mono',monospace;color:var(--txt3)}
+
+/* ── COMPACT ADD-KEY HERO ────────────────────────────── */
+.addbar{background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--glass-brd);border-radius:var(--r);box-shadow:var(--sh);padding:14px 16px;margin-bottom:6px}
+.addbar-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.addbar .fg{flex:0 0 auto}
+.addbar .fg.grow{flex:1 1 200px}
+.addbar .provsel{min-width:150px}
+.provinfo-toggle{background:none;border:none;color:var(--txt3);font-size:11.5px;font-weight:600;margin-top:10px;display:inline-flex;align-items:center;gap:5px;transition:color var(--tr)}
+.provinfo-toggle:hover{color:var(--accent)}
+.provinfo-wrap{overflow:hidden;transition:max-height .3s ease,opacity .3s ease}
+
+/* ── MODAL ───────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;background:rgba(8,10,18,.55);backdrop-filter:blur(5px);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s}
+.modal-overlay.open{opacity:1;visibility:visible}
+.modal-panel{width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;background:var(--glass);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid var(--glass-brd);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden;transform:translateY(16px) scale(.98);opacity:0;transition:transform .3s cubic-bezier(.2,.9,.25,1),opacity .3s}
+.modal-overlay.open .modal-panel{transform:none;opacity:1}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--border)}
+.modal-head h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
+.modal-x{background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;color:var(--txt2);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all var(--tr)}
+.modal-x:hover{background:var(--red);color:#fff;border-color:transparent;transform:rotate(90deg)}
+.modal-tabs{display:flex;gap:4px;padding:12px 16px 0}
+.mtab{flex:1;padding:9px 8px;font-size:12.5px;font-weight:700;color:var(--txt2);background:transparent;border:none;border-bottom:2px solid transparent;transition:all var(--tr)}
+.mtab:hover{color:var(--txt)}
+.mtab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.modal-body{padding:16px 20px 22px;overflow-y:auto}
+.mpane{display:none}
+.mpane.active{display:block;animation:fadeUp .25s ease}
+.mpane h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin:2px 0 10px}
+.mpane h3.mt{margin-top:20px}
 
 /* ── ENTRANCE + PULSE ────────────────────────────────── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -215,16 +255,22 @@ select{cursor:pointer}
 /* ── RESPONSIVE ──────────────────────────────────────── */
 @media(max-width:640px){
   .stats{grid-template-columns:repeat(3,1fr)}
-  .form-row,.set-row{flex-direction:column}
+  .form-row,.set-row,.addbar-row{flex-direction:column}
+  .addbar-row .fg,.addbar-row .btn{width:100%}
+  .addbar-row .fg select,.addbar-row .fg input{width:100%}
+  .addbar-row .btn{justify-content:center}
   .kitem{flex-wrap:wrap}.kactions{width:100%;justify-content:flex-end}
   .topbar{padding:0 14px}
+  .tbtn-lbl{display:none}
   .gist-id-row{flex-direction:column;align-items:stretch}
   .pinfo-item{flex:1 1 45%}
+  .modal-overlay{padding:3vh 10px}
 }
 @media(max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
+<canvas id="particles"></canvas>
 <div class="testbar" id="testBar"></div>
 
 <!-- TOPBAR -->
@@ -237,7 +283,11 @@ select{cursor:pointer}
     </div>
   </div>
   <div class="topbar-r">
-    <button class="theme-btn" onclick="toggleTheme()"><span id="tIco">🌙</span><span id="tLbl">Dark</span></button>
+    <button class="tbtn tbtn-ico" onclick="toggleTheme()" title="Ganti tema"><span class="ic" id="tIco">🌙</span></button>
+    <button class="tbtn" onclick="openSettings()" title="Pengaturan">
+      <span class="ic gear">⚙️</span><span class="tbtn-lbl">Settings</span>
+      <span class="tbtn-dot" id="setDot"></span>
+    </button>
   </div>
 </header>
 
@@ -255,15 +305,73 @@ select{cursor:pointer}
   <!-- CLOUD CHECK INFO -->
   <div class="cloudbar" id="cloudBar" hidden></div>
 
-  <!-- SETTINGS CARD -->
-  <div class="card" id="settingsCard">
-    <div class="card-head" onclick="toggleCard('settingsBody','settingsChev')">
-      <span class="card-title">⚙️ Pengaturan Akses GitHub <span id="settingsBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0">Belum diset</span></span>
-      <span class="card-chevron open" id="settingsChev">▼</span>
+  <!-- ADD KEY (compact) -->
+  <div class="addbar">
+    <div class="addbar-row">
+      <div class="fg provsel">
+        <label>Provider</label>
+        <select id="selProv" onchange="updateProvInfo()">
+          <option value="gemini">🔵 Gemini Flash</option>
+          <option value="cerebras">🟡 Cerebras</option>
+          <option value="groq">🟠 Groq</option>
+          <option value="mistral">🔴 Mistral</option>
+          <option value="openrouter">🟢 OpenRouter</option>
+          <option value="github_models">⬛ GitHub Models</option>
+          <option value="deepseek">🔷 DeepSeek</option>
+          <option value="qwen">🟣 Qwen</option>
+          <option value="claude">🟤 Claude</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Label</label>
+        <input class="inp inp-lbl" type="text" id="inpLabel" placeholder="e.g. main-key">
+      </div>
+      <div class="fg grow">
+        <label>API Key</label>
+        <input class="inp inp-key" type="password" id="inpKey" placeholder="Paste API key di sini...">
+      </div>
+      <button class="btn btn-p" onclick="addKey()" style="flex-shrink:0;align-self:flex-end">
+        <span style="font-size:16px;line-height:1">+</span> Tambah
+      </button>
     </div>
-    <div id="settingsBody">
-      <div class="card-body">
-        <!-- GitHub Token -->
+    <button class="provinfo-toggle" onclick="toggleProvInfo()"><span id="piChev">▸</span> Detail provider &amp; catatan CORS</button>
+    <div class="provinfo-wrap" id="provInfoWrap" data-open="0" style="max-height:0;opacity:0">
+      <div class="pinfo" id="provInfo"></div>
+      <div class="cors-notice">
+        <span>⚠️</span>
+        <span><strong>Catatan CORS:</strong> Test dari browser mungkin diblokir untuk Cerebras &amp; Mistral — ini normal. Key tetap valid. Gunakan <strong>Cloud Scheduler</strong> (⚙️ Settings) untuk test akurat tanpa batasan CORS.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY GROUPS -->
+  <div class="section-bar">
+    <h2>🔑 API Keys</h2>
+    <button class="btn btn-p btn-sm" onclick="testAllKeys()">⚡ Test Semua</button>
+  </div>
+  <div class="groups" id="groupsWrap"></div>
+
+</div><!-- /.wrap -->
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2>⚙️ Pengaturan
+        <span id="settingsBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);font-weight:500;text-transform:none;letter-spacing:0">Belum diset</span>
+      </h2>
+      <button class="modal-x" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="mtab active" data-tab="access" onclick="switchTab('access')">🔑 Akses</button>
+      <button class="mtab" data-tab="sync" onclick="switchTab('sync')">🔄 Sync</button>
+      <button class="mtab" data-tab="sched" onclick="switchTab('sched')">⏰ Scheduler</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- ACCESS -->
+      <div class="mpane active" id="pane-access">
+        <h3>Token GitHub &amp; Gist</h3>
         <div class="set-row">
           <div class="set-lbl">GitHub Token<small>Scope: gist + repo</small></div>
           <div class="set-val">
@@ -272,7 +380,6 @@ select{cursor:pointer}
           </div>
           <span class="set-status set-empty" id="ghTokenStatus">Belum diset</span>
         </div>
-        <!-- Gist Token -->
         <div class="set-row">
           <div class="set-lbl">Gist Token<small>Opsional — scope: gist</small></div>
           <div class="set-val">
@@ -286,62 +393,10 @@ select{cursor:pointer}
           <button class="btn btn-p btn-sm" onclick="saveSettings()">💾 Simpan Pengaturan</button>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- ADD KEY -->
-  <div class="card">
-    <div class="card-head" style="cursor:default"><span class="card-title">➕ Tambah API Key</span></div>
-    <div class="card-body">
-      <div class="form-row">
-        <div class="fg">
-          <label>Provider</label>
-          <select id="selProv" onchange="updateProvInfo()">
-            <option value="gemini">🔵 Gemini Flash</option>
-            <option value="cerebras">🟡 Cerebras</option>
-            <option value="groq">🟠 Groq</option>
-            <option value="mistral">🔴 Mistral</option>
-            <option value="openrouter">🟢 OpenRouter</option>
-            <option value="github_models">⬛ GitHub Models</option>
-            <option value="deepseek">🔷 DeepSeek</option>
-            <option value="qwen">🟣 Qwen</option>
-            <option value="claude">🟤 Claude</option>
-          </select>
-        </div>
-        <div class="fg">
-          <label>Label</label>
-          <input class="inp inp-lbl" type="text" id="inpLabel" placeholder="e.g. main-key">
-        </div>
-        <div class="fg" style="flex:1">
-          <label>API Key</label>
-          <input class="inp inp-key" type="password" id="inpKey" placeholder="Paste API key di sini...">
-        </div>
-        <button class="btn btn-p" onclick="addKey()" style="flex-shrink:0;align-self:flex-end">
-          <span style="font-size:16px;line-height:1">+</span> Tambah
-        </button>
-      </div>
-      <div class="pinfo" id="provInfo"></div>
-      <div class="cors-notice">
-        <span>⚠️</span>
-        <span><strong>Catatan CORS:</strong> Test dari browser mungkin diblokir untuk Cerebras & Mistral — ini normal. Key tetap valid. Gunakan <strong>Cloud Scheduler</strong> untuk test yang akurat tanpa batasan CORS.</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- KEY GROUPS -->
-  <div class="groups" id="groupsWrap"></div>
-
-  <!-- GIST SYNC -->
-  <div class="card">
-    <div class="card-head" onclick="toggleCard('syncBody','syncChev')">
-      <span class="card-title">🔄 Sync ke GitHub Gist</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span id="syncStatus" class="sync-status">Belum sync</span>
-        <span class="card-chevron open" id="syncChev">▼</span>
-      </div>
-    </div>
-    <div id="syncBody">
-      <div class="card-body">
+      <!-- SYNC -->
+      <div class="mpane" id="pane-sync">
+        <h3>Sync ke GitHub Gist <span id="syncStatus" class="sync-status" style="margin-left:6px">Belum sync</span></h3>
         <div class="fg" style="margin-bottom:4px">
           <label>Gist ID</label>
           <div class="gist-id-row">
@@ -357,20 +412,13 @@ select{cursor:pointer}
           <button class="btn btn-teal btn-sm" onclick="loadFromGist()">📂 Load from Gist</button>
         </div>
         <div style="margin-top:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);font-size:11.5px;color:var(--txt2);line-height:1.6">
-          ℹ️ GitHub/Gist Token diambil otomatis dari <strong>Pengaturan Akses</strong> di atas. Data vault disimpan ke <strong>private Gist</strong>.
+          ℹ️ GitHub/Gist Token diambil otomatis dari tab <strong>Akses</strong>. Data vault disimpan ke <strong>private Gist</strong>.
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- CLOUD SCHEDULER -->
-  <div class="card">
-    <div class="card-head" onclick="toggleCard('cloudBody','cloudChev')">
-      <span class="card-title">☁️ Cloud Scheduler — GitHub Actions</span>
-      <span class="card-chevron open" id="cloudChev">▼</span>
-    </div>
-    <div id="cloudBody">
-      <div class="card-body">
+      <!-- SCHEDULER -->
+      <div class="mpane" id="pane-sched">
+        <h3>☁️ Cloud Scheduler — GitHub Actions</h3>
         <div class="form-row">
           <div class="fg">
             <label>Interval Check</label>
@@ -389,40 +437,35 @@ select{cursor:pointer}
             <div class="instr-step"><span class="inum">1</span><span>Download <span class="mono">api-vault-check.yml</span> → taruh di <span class="mono">.github/workflows/</span> repo GitHub.</span></div>
             <div class="instr-step"><span class="inum">2</span><span>Repo GitHub → <strong>Settings → Secrets → Actions</strong>, tambahkan:</span></div>
             <div class="secret-pair">
-              <div>• <span class="mono">VAULT_GH_TOKEN</span> → isi dari Pengaturan Akses</div>
-              <div>• <span class="mono">VAULT_GIST_ID</span> → Gist ID dari bagian Sync</div>
+              <div>• <span class="mono">VAULT_GH_TOKEN</span> → isi dari tab Akses</div>
+              <div>• <span class="mono">VAULT_GIST_ID</span> → Gist ID dari tab Sync</div>
             </div>
             <div class="instr-step"><span class="inum">3</span><span>Commit + push → Actions berjalan otomatis sesuai jadwal, meski browser tertutup.</span></div>
             <div class="instr-step"><span class="inum">4</span><span>Buka web app → <strong>📂 Load from Gist</strong> untuk lihat status terbaru dari cloud.</span></div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- LOCAL SCHEDULER -->
-  <div class="card">
-    <div class="card-head" style="cursor:default"><span class="card-title">⏰ Local Scheduler (Browser)</span></div>
-    <div class="card-body">
-      <div class="sched-row">
-        <div class="fg">
-          <label>Interval</label>
-          <select id="selLocal">
-            <option value="0">— Nonaktif</option>
-            <option value="3600000">Setiap 1 jam</option>
-            <option value="21600000">Setiap 6 jam</option>
-            <option value="43200000">Setiap 12 jam</option>
-            <option value="86400000">Setiap 24 jam</option>
-          </select>
+        <h3 class="mt">⏰ Local Scheduler (Browser)</h3>
+        <div class="sched-row">
+          <div class="fg">
+            <label>Interval</label>
+            <select id="selLocal">
+              <option value="0">— Nonaktif</option>
+              <option value="3600000">Setiap 1 jam</option>
+              <option value="21600000">Setiap 6 jam</option>
+              <option value="43200000">Setiap 12 jam</option>
+              <option value="86400000">Setiap 24 jam</option>
+            </select>
+          </div>
+          <button class="btn btn-g" id="localBtn" onclick="toggleLocalSched()" style="align-self:flex-end">▶ Aktifkan</button>
+          <div class="sched-pill" id="localPill" style="align-self:flex-end">Belum dijadwalkan</div>
         </div>
-        <button class="btn btn-g" id="localBtn" onclick="toggleLocalSched()" style="align-self:flex-end">▶ Aktifkan</button>
-        <div class="sched-pill" id="localPill" style="align-self:flex-end">Belum dijadwalkan</div>
-        <button class="btn btn-p btn-sm" onclick="testAllKeys()" style="margin-left:auto;align-self:flex-end">⚡ Test Semua</button>
       </div>
+
     </div>
   </div>
-
 </div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
@@ -478,8 +521,8 @@ function toggleTheme(){
   isDark=!isDark;
   document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
   document.getElementById('tIco').textContent=isDark?'☀️':'🌙';
-  document.getElementById('tLbl').textContent=isDark?'Light':'Dark';
   localStorage.setItem('apivault_theme',isDark?'dark':'light');
+  if(window.particlesRefresh) particlesRefresh();
 }
 
 // ══════════════════════════════════════
@@ -500,13 +543,27 @@ function setCollapse(el, show){
     requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.maxHeight='0px';el.style.opacity='0';}));
   }
 }
-function toggleCard(bodyId, chevId){
-  const body=document.getElementById(bodyId), chev=document.getElementById(chevId);
-  if(!body) return;
-  const willOpen=body.dataset.collapsed==='1';
-  setCollapse(body, willOpen);
-  body.dataset.collapsed=willOpen?'0':'1';
-  if(chev) chev.classList.toggle('open',willOpen);
+// ══════════════════════════════════════
+// SETTINGS MODAL
+// ══════════════════════════════════════
+function openSettings(){
+  document.getElementById('settingsModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeSettings(){
+  document.getElementById('settingsModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+function switchTab(tab){
+  document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.mpane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+tab));
+}
+function toggleProvInfo(){
+  const w=document.getElementById('provInfoWrap'),chev=document.getElementById('piChev');
+  const open=w.dataset.open==='1';
+  setCollapse(w,!open);
+  w.dataset.open=open?'0':'1';
+  chev.textContent=open?'▸':'▾';
 }
 
 // ══════════════════════════════════════
@@ -523,22 +580,18 @@ function renderSettings(){
   else{ghEl.textContent='Belum diset';ghEl.className='set-status set-empty';}
   if(gist){giEl.textContent='✓ Diset';giEl.className='set-status set-ok';}
   else{giEl.textContent='Opsional';giEl.className='set-status set-empty';}
-  // topbar badge
+  // modal badge + topbar dot
   const badge=document.getElementById('settingsBadge');
-  if(gh){badge.textContent='✓ Token tersimpan';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(18,183,106,.1);color:#12B76A;margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0';}
-  else{badge.textContent='Belum diset';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);margin-left:4px;font-weight:500;text-transform:none;letter-spacing:0';}
+  if(gh){badge.textContent='✓ Token tersimpan';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(18,183,106,.1);color:#12B76A;font-weight:500;text-transform:none;letter-spacing:0';}
+  else{badge.textContent='Belum diset';badge.style.cssText='font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border);font-weight:500;text-transform:none;letter-spacing:0';}
+  document.getElementById('setDot').classList.toggle('on',!!gh);
 }
 function saveSettings(){
   settings.ghToken=document.getElementById('setGhToken').value.trim();
   settings.gistToken=document.getElementById('setGistToken').value.trim();
   saveSettingsLS(); renderSettings();
   toast('Pengaturan disimpan ✓','ok');
-  // auto collapse if tokens set
-  if(settings.ghToken){
-    const body=document.getElementById('settingsBody');
-    const chev=document.getElementById('settingsChev');
-    if(body&&body.dataset.collapsed!=='1'){setCollapse(body,false);body.dataset.collapsed='1';chev.classList.remove('open');}
-  }
+  if(settings.ghToken) closeSettings();
 }
 function toggleSetEye(inputId, btn){
   const inp=document.getElementById(inputId);
@@ -1113,24 +1166,71 @@ function renderCloudBar(){
 }
 
 // ══════════════════════════════════════
+// PARTICLE BACKGROUND
+// ══════════════════════════════════════
+function initParticles(){
+  if(reduceMotion) return;
+  const cv=document.getElementById('particles'),ctx=cv.getContext('2d');
+  let W,H,pts=[],rgb='79,110,247';
+  const mouse={x:-999,y:-999};
+  const readColor=()=>{rgb=getComputedStyle(document.documentElement).getPropertyValue('--particle').trim()||'79,110,247';};
+  function resize(){
+    W=cv.width=window.innerWidth; H=cv.height=window.innerHeight;
+    const n=Math.min(70,Math.floor(W*H/22000));
+    pts=Array.from({length:n},()=>({
+      x:Math.random()*W, y:Math.random()*H,
+      vx:(Math.random()-.5)*.35, vy:(Math.random()-.5)*.35,
+      r:Math.random()*1.8+.7
+    }));
+  }
+  window.particlesRefresh=readColor;
+  window.addEventListener('resize',resize);
+  window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+  window.addEventListener('mouseout',()=>{mouse.x=mouse.y=-999;});
+  readColor(); resize();
+  const LINK=110, MOUSE_R=140;
+  (function frame(){
+    ctx.clearRect(0,0,W,H);
+    for(const p of pts){
+      // dorongan halus menjauh dari kursor
+      const dxm=p.x-mouse.x, dym=p.y-mouse.y, dm=Math.hypot(dxm,dym);
+      if(dm<MOUSE_R&&dm>0){const f=(MOUSE_R-dm)/MOUSE_R*.03;p.vx+=dxm/dm*f;p.vy+=dym/dm*f;}
+      p.vx*=.995;p.vy*=.995;
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<-20)p.x=W+20; if(p.x>W+20)p.x=-20;
+      if(p.y<-20)p.y=H+20; if(p.y>H+20)p.y=-20;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);
+      ctx.fillStyle='rgba('+rgb+',.5)';ctx.fill();
+    }
+    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+      const a=pts[i],b=pts[j],dx=a.x-b.x,dy=a.y-b.y;
+      if(Math.abs(dx)>LINK||Math.abs(dy)>LINK)continue;
+      const d=Math.hypot(dx,dy);
+      if(d<LINK){
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+        ctx.strokeStyle='rgba('+rgb+','+(.16*(1-d/LINK)).toFixed(3)+')';
+        ctx.lineWidth=1;ctx.stroke();
+      }
+    }
+    requestAnimationFrame(frame);
+  })();
+}
+
+// ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
   loadKeys(); loadSettingsLS();
   if(localStorage.getItem('apivault_theme')==='dark'){
     isDark=true;document.documentElement.setAttribute('data-theme','dark');
-    document.getElementById('tIco').textContent='☀️';document.getElementById('tLbl').textContent='Light';
+    document.getElementById('tIco').textContent='☀️';
   }
   const gid=localStorage.getItem('apivault_gist_id');
   if(gid) document.getElementById('inpGistId').value=gid;
-  // Auto-collapse settings if already set (no animation on first paint)
-  if(settings.ghToken){
-    const body=document.getElementById('settingsBody');
-    const chev=document.getElementById('settingsChev');
-    if(body){body.style.maxHeight='0px';body.style.opacity='0';body.dataset.collapsed='1';chev.classList.remove('open');}
-  }
   render(); renderSettings(); updateProvInfo(); updateSyncStatus(); renderCloudBar();
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+  initParticles();
 });
 </script>
 </body>
