@@ -133,7 +133,7 @@ select{cursor:pointer}
 .btn-sm{padding:5px 10px;font-size:11.5px}
 
 /* ── BENTO GRID ──────────────────────────────────────── */
-.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:14px}
 .groups .pgroup{grid-column:1/-1}
 .kcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px;
   background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
@@ -298,8 +298,10 @@ select{cursor:pointer}
 @media(hover:hover) and (pointer:fine){
   .kitem .kactions .btn{opacity:0;transform:translateX(10px);transition:opacity .2s ease,transform .28s cubic-bezier(.2,.9,.3,1.15),background var(--tr),color var(--tr),border-color var(--tr)}
   .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn{opacity:1;transform:none}
+  /* beri ruang di bawah agar overlay aksi menimpa area kosong, bukan teks meta */
+  .kcard{padding-bottom:44px}
   .kcard .kactions{position:absolute;left:0;right:0;bottom:0;margin:0;padding:9px 12px 10px;justify-content:flex-end;
-    background:linear-gradient(180deg,rgba(127,127,127,0),var(--surface2) 55%);
+    background:linear-gradient(180deg,rgba(127,127,127,0),var(--surface2) 60%);
     transform:translateY(102%);opacity:0;
     transition:transform .28s cubic-bezier(.2,.9,.3,1.08),opacity .2s ease}
   .kcard:hover .kactions,.kcard:focus-within .kactions{transform:none;opacity:1}
