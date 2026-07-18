@@ -36,10 +36,16 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background var(--tr),color var(--tr);padding-bottom:40px;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+body::before{content:'';position:fixed;inset:-6%;z-index:0;pointer-events:none;
   background:radial-gradient(1200px 620px at 12% -12%,var(--glow1),transparent 60%),
              radial-gradient(1000px 520px at 100% -5%,var(--glow2),transparent 55%),
-             radial-gradient(900px 500px at 50% 120%,var(--glow1),transparent 60%)}
+             radial-gradient(900px 500px at 50% 120%,var(--glow1),transparent 60%);
+  animation:aurora 70s ease-in-out infinite}
+@keyframes aurora{
+  0%,100%{transform:translate3d(0,0,0) scale(1);filter:hue-rotate(0deg)}
+  33%{transform:translate3d(1.5%,-1%,0) scale(1.05);filter:hue-rotate(12deg)}
+  66%{transform:translate3d(-1.5%,1%,0) scale(1.03);filter:hue-rotate(-10deg)}
+}
 #particles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.9}
 button{font-family:inherit;cursor:pointer}
 select,input{font-family:inherit}
@@ -61,7 +67,7 @@ select,input{font-family:inherit}
 .tbtn:hover .gear{animation:spin .4s ease}
 
 /* ── LAYOUT ──────────────────────────────────────────── */
-.wrap{max-width:960px;margin:0 auto;padding:22px 16px;position:relative;z-index:2}
+.wrap{max-width:min(1700px,95vw);margin:0 auto;padding:22px 20px;position:relative;z-index:2}
 .section-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 2px 12px}
 .section-bar h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3)}
 
@@ -127,11 +133,11 @@ select{cursor:pointer}
 .btn-sm{padding:5px 10px;font-size:11.5px}
 
 /* ── BENTO GRID ──────────────────────────────────────── */
-.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:14px}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:14px}
 .groups .pgroup{grid-column:1/-1}
-.kcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:7px;
+.kcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px;
   background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
-  border:1px solid var(--glass-brd);border-radius:var(--r);padding:14px 16px 12px;box-shadow:var(--sh);
+  border:1px solid var(--glass-brd);border-radius:var(--r);padding:13px 14px 11px;box-shadow:var(--sh);
   transition:transform var(--tr),box-shadow var(--tr)}
 .kcard:hover{transform:translateY(-3px);box-shadow:var(--shm)}
 .kcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--pc,var(--accent)),transparent 140%);opacity:.9;pointer-events:none}
@@ -287,14 +293,16 @@ select{cursor:pointer}
 .pgroup::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--pc,var(--accent)),transparent 140%);opacity:.9;z-index:1;pointer-events:none}
 
 /* ── HOVER-TO-REVEAL ACTIONS ─────────────────────────── */
+/* Desktop: bar aksi tidak mereservasi tempat — overlay yang slide-up
+   menimpa bagian bawah kartu saat hover. Kartu jadi jauh lebih pendek. */
 @media(hover:hover) and (pointer:fine){
-  .kactions .btn{opacity:0;transform:translateX(10px);transition:opacity .2s ease,transform .28s cubic-bezier(.2,.9,.3,1.15),background var(--tr),color var(--tr),border-color var(--tr)}
-  .kactions .btn:nth-of-type(1){transition-delay:0s}
-  .kactions .btn:nth-of-type(2){transition-delay:.03s}
-  .kactions .btn:nth-of-type(3){transition-delay:.06s}
-  .kactions .btn:nth-of-type(4){transition-delay:.09s}
-  .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn,
-  .kcard:hover .kactions .btn,.kcard:focus-within .kactions .btn{opacity:1;transform:none}
+  .kitem .kactions .btn{opacity:0;transform:translateX(10px);transition:opacity .2s ease,transform .28s cubic-bezier(.2,.9,.3,1.15),background var(--tr),color var(--tr),border-color var(--tr)}
+  .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn{opacity:1;transform:none}
+  .kcard .kactions{position:absolute;left:0;right:0;bottom:0;margin:0;padding:9px 12px 10px;justify-content:flex-end;
+    background:linear-gradient(180deg,rgba(127,127,127,0),var(--surface2) 55%);
+    transform:translateY(102%);opacity:0;
+    transition:transform .28s cubic-bezier(.2,.9,.3,1.08),opacity .2s ease}
+  .kcard:hover .kactions,.kcard:focus-within .kactions{transform:none;opacity:1}
 }
 
 /* ── SHIMMER (key sedang dites) ──────────────────────── */
@@ -1815,52 +1823,60 @@ function renderCloudBar(){
 // ══════════════════════════════════════
 // PARTICLE BACKGROUND
 // ══════════════════════════════════════
+// Rising fireflies: partikel lahir di bawah, naik pelan dengan goyang
+// sinusoidal, glow untuk yang besar + spark sesekali, parallax tipis
+// mengikuti mouse. Hemat: pause saat tab tersembunyi, density per luas.
 function initParticles(){
   if(reduceMotion) return;
   const cv=document.getElementById('particles'),ctx=cv.getContext('2d');
-  let W,H,pts=[],rgb='79,110,247';
-  const mouse={x:-999,y:-999};
+  let W,H,pts=[],rgb='79,110,247',visible=true;
+  const mouse={x:.5,tx:.5};
   const readColor=()=>{rgb=getComputedStyle(document.documentElement).getPropertyValue('--particle').trim()||'79,110,247';};
+  function spawn(p,initial){
+    p.r=Math.random()*2+.8;
+    p.layer=p.r/2.8;                       // besar = dekat = parallax kuat
+    p.bx=Math.random()*W;
+    p.y=initial?Math.random()*H:H+10+Math.random()*30;
+    p.spd=(.18+Math.random()*.5)*(.5+p.layer);
+    p.amp=8+Math.random()*26;
+    p.freq=.0004+Math.random()*.0008;
+    p.phase=Math.random()*Math.PI*2;
+    p.o=.22+Math.random()*.45;
+    p.spark=Math.random()<.06;             // sesekali lebih terang
+    return p;
+  }
   function resize(){
     W=cv.width=window.innerWidth; H=cv.height=window.innerHeight;
-    const n=Math.min(70,Math.floor(W*H/22000));
-    pts=Array.from({length:n},()=>({
-      x:Math.random()*W, y:Math.random()*H,
-      vx:(Math.random()-.5)*.35, vy:(Math.random()-.5)*.35,
-      r:Math.random()*1.8+.7
-    }));
+    const n=Math.min(90,Math.floor(W*H/16000));
+    pts=Array.from({length:n},()=>spawn({},true));
   }
   window.particlesRefresh=readColor;
   window.addEventListener('resize',resize);
-  window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
-  window.addEventListener('mouseout',()=>{mouse.x=mouse.y=-999;});
+  window.addEventListener('mousemove',e=>{mouse.tx=e.clientX/W;});
+  document.addEventListener('visibilitychange',()=>{visible=document.visibilityState==='visible';});
   readColor(); resize();
-  const LINK=110, MOUSE_R=140;
-  (function frame(){
-    ctx.clearRect(0,0,W,H);
-    for(const p of pts){
-      // dorongan halus menjauh dari kursor
-      const dxm=p.x-mouse.x, dym=p.y-mouse.y, dm=Math.hypot(dxm,dym);
-      if(dm<MOUSE_R&&dm>0){const f=(MOUSE_R-dm)/MOUSE_R*.03;p.vx+=dxm/dm*f;p.vy+=dym/dm*f;}
-      p.vx*=.995;p.vy*=.995;
-      p.x+=p.vx;p.y+=p.vy;
-      if(p.x<-20)p.x=W+20; if(p.x>W+20)p.x=-20;
-      if(p.y<-20)p.y=H+20; if(p.y>H+20)p.y=-20;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);
-      ctx.fillStyle='rgba('+rgb+',.5)';ctx.fill();
-    }
-    for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
-      const a=pts[i],b=pts[j],dx=a.x-b.x,dy=a.y-b.y;
-      if(Math.abs(dx)>LINK||Math.abs(dy)>LINK)continue;
-      const d=Math.hypot(dx,dy);
-      if(d<LINK){
-        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
-        ctx.strokeStyle='rgba('+rgb+','+(.16*(1-d/LINK)).toFixed(3)+')';
-        ctx.lineWidth=1;ctx.stroke();
-      }
-    }
+  (function frame(t){
     requestAnimationFrame(frame);
-  })();
+    if(!visible) return;
+    ctx.clearRect(0,0,W,H);
+    mouse.x+=(mouse.tx-mouse.x)*.04;       // lerp halus
+    const par=(mouse.x-.5)*60;
+    for(const p of pts){
+      p.y-=p.spd;
+      if(p.y<-30){spawn(p,false);continue;}
+      const x=p.bx+Math.sin(t*p.freq+p.phase)*p.amp+par*p.layer;
+      // fade-in di bawah, fade-out mendekati atas
+      const a=p.o*Math.min(1,(H+20-p.y)/90)*Math.min(1,Math.max(0,p.y/(H*.22)));
+      if(a<=0) continue;
+      ctx.beginPath();
+      if(p.spark||p.r>2.2){ctx.shadowBlur=p.spark?14:8;ctx.shadowColor='rgba('+rgb+','+(p.spark?.9:.5)+')';}
+      else ctx.shadowBlur=0;
+      ctx.arc(x,p.y,p.r,0,7);
+      ctx.fillStyle='rgba('+rgb+','+(p.spark?Math.min(1,a*1.8):a).toFixed(3)+')';
+      ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  })(0);
 }
 
 // ══════════════════════════════════════
