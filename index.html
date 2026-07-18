@@ -378,6 +378,11 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
   animation-duration:.38s;animation-timing-function:cubic-bezier(.22,1,.36,1);height:100%}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.3s}
 
+/* ── DRAG & DROP REORDER ─────────────────────────────── */
+.kcard.dragging{opacity:.45;transform:scale(.97);box-shadow:none;cursor:grabbing}
+.kcard.dragover{outline:2px dashed var(--accent);outline-offset:3px}
+.groups.drag-active .kcard{cursor:grabbing}
+
 /* ── COMMAND PALETTE ─────────────────────────────────── */
 .cp-overlay{position:fixed;inset:0;z-index:1100;display:none;align-items:flex-start;justify-content:center;padding:14vh 16px 16px;background:rgba(8,10,18,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .cp-overlay.open{display:flex}
@@ -481,6 +486,7 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
       <option value="status">↕ Status</option>
       <option value="newest">↕ Terbaru</option>
       <option value="label">↕ Label</option>
+      <option value="manual">↕ Manual (drag)</option>
     </select>
   </div>
   <div class="groups" id="groupsWrap"></div>
@@ -875,7 +881,7 @@ function cpRun(i){
 // ══════════════════════════════════════
 let detailId=null, dRevealed=false;
 function cardClick(ev,id){
-  if(ev.target.closest('button,.kval'))return;
+  if(justDragged||ev.target.closest('button,.kval'))return;
   openDetail(id);
 }
 function openDetail(id){
@@ -1669,7 +1675,59 @@ function sortList(l){
   if(fSort==='status')      l.sort((a,b)=>(SORDER[a.status]??9)-(SORDER[b.status]??9)||a.label.localeCompare(b.label));
   else if(fSort==='newest') l.sort((a,b)=>(b.addedAt||'').localeCompare(a.addedAt||''));
   else if(fSort==='label')  l.sort((a,b)=>a.label.localeCompare(b.label));
+  else if(fSort==='manual') l.sort((a,b)=>(a.ord??1e9)-(b.ord??1e9));
   else                      l.sort((a,b)=>PORDER.indexOf(a.provider)-PORDER.indexOf(b.provider)||a.label.localeCompare(b.label));
+}
+
+// ══════════════════════════════════════
+// DRAG & DROP — susun urutan manual.
+// Live reorder saat drag melintasi kartu lain (FLIP), urutan
+// disimpan di k.ord dan sort otomatis pindah ke mode Manual.
+// ══════════════════════════════════════
+let dragId=null, justDragged=false;
+function ensureOrd(){
+  // bekukan urutan tampilan saat ini sebagai baseline ord
+  const list=keys.filter(keyMatches); sortList(list);
+  const seen=new Set(list.map(k=>k.id));
+  let i=0;
+  for(const k of list) k.ord=i++;
+  for(const k of keys) if(!seen.has(k.id)&&k.ord==null) k.ord=i++;
+}
+function dragStart(ev,id){
+  if(fSort!=='manual'){
+    ensureOrd(); fSort='manual';
+    const sel=document.getElementById('fSort'); if(sel) sel.value='manual';
+  }
+  dragId=id;
+  ev.dataTransfer.effectAllowed='move';
+  ev.dataTransfer.setData('text/plain',String(id));
+  requestAnimationFrame(()=>{const el=document.getElementById('ki-'+id);if(el)el.classList.add('dragging');});
+  document.getElementById('groupsWrap').classList.add('drag-active');
+}
+function dragOverCard(ev,overId){
+  if(dragId==null||overId==dragId) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect='move';
+  const a=keys.find(k=>k.id==dragId), b=keys.find(k=>k.id==overId);
+  if(!a||!b||a.ord===undefined||b.ord===undefined) return;
+  // geser a ke posisi b, kartu di antaranya bergeser satu langkah
+  const from=a.ord, to=b.ord;
+  if(from===to) return;
+  for(const k of keys){
+    if(k.ord==null) continue;
+    if(from<to && k.ord>from && k.ord<=to) k.ord--;
+    else if(from>to && k.ord>=to && k.ord<from) k.ord++;
+  }
+  a.ord=to;
+  flip(renderGroups);
+  const el=document.getElementById('ki-'+dragId); if(el) el.classList.add('dragging');
+}
+function dragDrop(ev){ ev.preventDefault(); }
+function dragEnd(){
+  const el=document.getElementById('ki-'+dragId); if(el) el.classList.remove('dragging');
+  document.getElementById('groupsWrap').classList.remove('drag-active');
+  dragId=null; saveKeys();
+  justDragged=true; setTimeout(()=>justDragged=false,150);
 }
 
 function renderGroups(){
@@ -1697,7 +1755,7 @@ function keyCard(k,i=0){
   const p=P[k.provider];
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
-  return `<div class="kcard" id="ki-${k.id}" style="--i:${i};--pc:${PC[k.provider]||'var(--accent)'}" onclick="cardClick(event,${k.id})" title="Klik untuk detail">
+  return `<div class="kcard" id="ki-${k.id}" style="--i:${i};--pc:${PC[k.provider]||'var(--accent)'}" onclick="cardClick(event,${k.id})" title="Klik untuk detail · Drag untuk susun urutan" draggable="true" ondragstart="dragStart(event,${k.id})" ondragover="dragOverCard(event,${k.id})" ondrop="dragDrop(event)" ondragend="dragEnd()">
   <div class="kc-top">
     <span class="pbadge ${p.badge}">${p.icon} ${p.name}</span>
     <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
