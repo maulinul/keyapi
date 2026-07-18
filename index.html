@@ -374,6 +374,29 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
   animation-duration:.38s;animation-timing-function:cubic-bezier(.22,1,.36,1);height:100%}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.3s}
 
+/* ── COMMAND PALETTE ─────────────────────────────────── */
+.cp-overlay{position:fixed;inset:0;z-index:1100;display:none;align-items:flex-start;justify-content:center;padding:14vh 16px 16px;background:rgba(8,10,18,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.cp-overlay.open{display:flex}
+.cp{width:100%;max-width:560px;background:var(--glass);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--glass-brd);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden}
+.cp-inputwrap{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.cp-inputwrap .cp-ic{font-size:15px;flex-shrink:0}
+#cpInput{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--txt);font-family:inherit}
+#cpInput::placeholder{color:var(--txt3)}
+.cp-kbd{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--txt3);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;flex-shrink:0}
+.cp-list{max-height:min(46vh,380px);overflow-y:auto;padding:6px}
+.cp-item{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--txt2);animation:fadeUp .18s ease backwards;animation-delay:calc(var(--i,0)*18ms)}
+.cp-item .ci{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.cp-item .cl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-item .cl b{color:var(--accent);font-weight:700}
+.cp-item .ch{font-size:10.5px;font-family:'JetBrains Mono',monospace;color:var(--txt3);flex-shrink:0}
+.cp-item.sel{background:var(--accent);color:#fff}
+.cp-item.sel .cl b{color:#fff;text-decoration:underline}
+.cp-item.sel .ch{color:rgba(255,255,255,.75)}
+.cp-empty{padding:26px 14px;text-align:center;color:var(--txt3);font-size:12.5px}
+.cp-sect{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);padding:8px 11px 3px}
+.cp-foot{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--txt3)}
+.cp-foot span{display:inline-flex;align-items:center;gap:5px}
+
 /* ── REDUCED MOTION ──────────────────────────────────── */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
@@ -464,7 +487,7 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
 <div class="drawer-overlay" onclick="closeDrawer()"></div>
 <aside class="drawer" id="addDrawer" aria-label="Tambah API Key">
   <div class="drawer-head">
-    <h2>➕ Tambah API Key <span class="kbd">Ctrl+K</span></h2>
+    <h2>➕ Tambah API Key</h2>
     <button class="modal-x" onclick="closeDrawer()">✕</button>
   </div>
   <div class="drawer-body">
@@ -509,7 +532,20 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
   </div><!-- /.drawer-body -->
 </aside>
 
-<button class="fab" onclick="toggleDrawer()" title="Tambah key (Ctrl+K)">+</button>
+<button class="fab" onclick="toggleDrawer()" title="Tambah key">+</button>
+
+<!-- COMMAND PALETTE -->
+<div class="cp-overlay" id="cpOverlay" onclick="if(event.target===this)closePalette()">
+  <div class="cp" role="dialog" aria-label="Command palette">
+    <div class="cp-inputwrap">
+      <span class="cp-ic">🔍</span>
+      <input id="cpInput" placeholder="Ketik perintah atau cari key..." autocomplete="off" spellcheck="false">
+      <span class="cp-kbd">Esc</span>
+    </div>
+    <div class="cp-list" id="cpList"></div>
+    <div class="cp-foot"><span>↑↓ navigasi</span><span>↵ pilih</span><span>Esc tutup</span></div>
+  </div>
+</div>
 
 <!-- KEY DETAIL MODAL (shared element transition) -->
 <div class="dmodal" id="detailModal" onclick="if(event.target===this)closeDetail()">
@@ -741,6 +777,90 @@ function openDrawer(){
 }
 function closeDrawer(){ document.body.classList.remove('drawer-open'); }
 function toggleDrawer(){ drawerOpen()?closeDrawer():openDrawer(); }
+
+// ══════════════════════════════════════
+// COMMAND PALETTE (Ctrl+K)
+// Fuzzy search subsequence: skor untuk huruf berurutan & awal kata,
+// karakter yang cocok di-highlight.
+// ══════════════════════════════════════
+let cpItems=[], cpSel=0;
+function fuzzy(q,txt){
+  if(!q) return {score:0,marks:[]};
+  const t=txt.toLowerCase();
+  let ti=0,score=0,streak=0;const marks=[];
+  for(const c of q){
+    const hit=t.indexOf(c,ti);
+    if(hit<0) return null;
+    streak=(hit===ti&&marks.length)?streak+1:1;
+    score+=streak*3+(hit===0||' -_#'.includes(t[hit-1])?5:0)-(hit-ti);
+    marks.push(hit);ti=hit+1;
+  }
+  return {score,marks};
+}
+function cpCommands(){
+  const cmds=[
+    {icon:'➕',label:'Tambah API Key',hint:'drawer',sect:'Aksi',run:openDrawer},
+    {icon:'⚡',label:'Test Semua Key',hint:keys.length+' key',sect:'Aksi',run:testAllKeys},
+    {icon:isDark?'☀️':'🌙',label:'Ganti Tema '+(isDark?'Terang':'Gelap'),sect:'Aksi',run:toggleTheme},
+    {icon:'⚙️',label:'Buka Pengaturan',sect:'Aksi',run:openSettings},
+    {icon:'⬇️',label:'Export Vault (JSON)',sect:'Aksi',run:exportVault},
+    {icon:'⬆️',label:'Import Vault (JSON)',sect:'Aksi',run:()=>document.getElementById('impFile').click()},
+  ];
+  const slbl={ok:'✅',fail:'❌',cors:'⚠',unknown:'❔',pending:'⏳'};
+  for(const k of keys)
+    cmds.push({icon:P[k.provider].icon,label:k.label,hint:(slbl[k.status]||'')+' '+P[k.provider].name,
+      extra:P[k.provider].name,sect:'API Keys',run:()=>openDetail(k.id)});
+  return cmds;
+}
+function cpOpen(){return document.getElementById('cpOverlay').classList.contains('open');}
+function openPalette(){
+  const ov=document.getElementById('cpOverlay');
+  ov.classList.add('open');
+  const inp=document.getElementById('cpInput');
+  inp.value=''; cpRefresh(); inp.focus();
+  if(!reduceMotion)
+    ov.querySelector('.cp').animate(
+      [{opacity:0,transform:'scale(.96) translateY(-8px)'},{opacity:1,transform:'none'}],
+      {duration:220,easing:'cubic-bezier(.22,1,.36,1)'});
+}
+function closePalette(){document.getElementById('cpOverlay').classList.remove('open');}
+function cpRefresh(){
+  const q=document.getElementById('cpInput').value.trim().toLowerCase();
+  const scored=[];
+  for(const c of cpCommands()){
+    let m=fuzzy(q,c.label),marks=m?m.marks:[];
+    if(!m&&c.extra){m=fuzzy(q,c.extra);marks=[];}
+    if(m) scored.push({...c,score:m.score,marks});
+  }
+  scored.sort((a,b)=>b.score-a.score);
+  cpItems=scored; cpSel=0; cpRender();
+}
+function cpRender(){
+  const list=document.getElementById('cpList');
+  if(!cpItems.length){list.innerHTML='<div class="cp-empty">Tidak ada hasil. Coba kata lain 🤔</div>';return;}
+  let html='',lastSect='',i=0;
+  const q=document.getElementById('cpInput').value.trim();
+  for(const c of cpItems){
+    if(!q&&c.sect!==lastSect){html+=`<div class="cp-sect">${c.sect}</div>`;lastSect=c.sect;}
+    const lbl=[...c.label].map((ch,j)=>c.marks&&c.marks.includes(j)?'<b>'+esc(ch)+'</b>':esc(ch)).join('');
+    html+=`<div class="cp-item${i===cpSel?' sel':''}" style="--i:${i}" data-i="${i}"
+      onclick="cpRun(${i})" onmousemove="cpHover(${i})">
+      <span class="ci">${c.icon}</span><span class="cl">${lbl}</span>${c.hint?`<span class="ch">${esc(c.hint)}</span>`:''}</div>`;
+    i++;
+  }
+  list.innerHTML=html;
+}
+function cpHover(i){if(i!==cpSel){cpSel=i;cpPaint();}}
+function cpPaint(){
+  document.querySelectorAll('.cp-item').forEach(el=>el.classList.toggle('sel',+el.dataset.i===cpSel));
+  const sel=document.querySelector('.cp-item.sel');
+  if(sel) sel.scrollIntoView({block:'nearest'});
+}
+function cpRun(i){
+  const c=cpItems[i];if(!c)return;
+  closePalette();
+  c.run();
+}
 
 // ══════════════════════════════════════
 // KEY DETAIL — shared element transition
@@ -1558,7 +1678,7 @@ function renderGroups(){
     wrap.classList.remove('stagger');
     wrap.innerHTML=keys.length
       ?'<div class="pgroup"><div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada key yang cocok dengan filter.</p></div></div>'
-      :'<div class="pgroup"><div class="empty"><div class="empty-icon" id="lottieEmpty">🔑</div><p>Belum ada API key. Klik tombol <b>＋</b> atau tekan <b>Ctrl+K</b> untuk menambahkan.</p></div></div>';
+      :'<div class="pgroup"><div class="empty"><div class="empty-icon" id="lottieEmpty">🔑</div><p>Belum ada API key. Klik tombol <b>＋</b> untuk menambahkan, atau tekan <b>Ctrl+K</b> untuk command palette.</p></div></div>';
     mountLottie();
     staggerNext=false;return;
   }
@@ -1695,11 +1815,22 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
-      if(detailId!=null) closeDetail();
+      if(cpOpen()) closePalette();
+      else if(detailId!=null) closeDetail();
       else if(drawerOpen()) closeDrawer();
       else closeSettings();
     }
-    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();toggleDrawer();}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+      e.preventDefault();
+      cpOpen()?closePalette():openPalette();
+    }
+  });
+  const cpInp=document.getElementById('cpInput');
+  cpInp.addEventListener('input',cpRefresh);
+  cpInp.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){e.preventDefault();if(cpSel<cpItems.length-1){cpSel++;cpPaint();}}
+    else if(e.key==='ArrowUp'){e.preventDefault();if(cpSel>0){cpSel--;cpPaint();}}
+    else if(e.key==='Enter'){e.preventDefault();cpRun(cpSel);}
   });
   initParticles();
   window.addEventListener('load',mountLottie);
