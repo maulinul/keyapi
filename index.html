@@ -347,6 +347,30 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
   body.drawer-open .drawer{transform:none}
 }
 
+/* ── DETAIL MODAL + VIEW TRANSITIONS ─────────────────── */
+.kcard{cursor:pointer}
+.kcard .kactions .btn,.kcard .kval{cursor:pointer}
+.dmodal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:5vh 16px;background:rgba(8,10,18,.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.dmodal.open{display:flex}
+.dpanel{width:100%;max-width:540px;max-height:88vh;overflow-y:auto;position:relative;
+  background:var(--glass);backdrop-filter:blur(22px) saturate(155%);-webkit-backdrop-filter:blur(22px) saturate(155%);
+  border:1px solid var(--glass-brd);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.45);
+  padding:20px 22px 22px;view-transition-name:card-zoom}
+.dpanel::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--pc,var(--accent)),transparent 140%);border-radius:16px 0 0 16px}
+.dtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.dtop-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dname{font-size:19px;font-weight:800;letter-spacing:-.01em;margin-bottom:12px;word-break:break-word}
+.dkeybox{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 13px;margin-bottom:14px}
+.dkeyval{flex:1;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--txt);word-break:break-all;line-height:1.5}
+.dmeta{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:12px;margin-bottom:16px}
+.dmeta .dl{color:var(--txt3);font-weight:600;white-space:nowrap}
+.dmeta .dv{color:var(--txt2);font-family:'JetBrains Mono',monospace;font-size:11.5px;word-break:break-word}
+.dactions{display:flex;gap:7px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)}
+.dactions .btn{flex:1;justify-content:center;min-width:100px}
+::view-transition-old(card-zoom),::view-transition-new(card-zoom){
+  animation-duration:.38s;animation-timing-function:cubic-bezier(.22,1,.36,1);height:100%}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.3s}
+
 /* ── REDUCED MOTION ──────────────────────────────────── */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
@@ -483,6 +507,11 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
 </aside>
 
 <button class="fab" onclick="toggleDrawer()" title="Tambah key (Ctrl+K)">+</button>
+
+<!-- KEY DETAIL MODAL (shared element transition) -->
+<div class="dmodal" id="detailModal" onclick="if(event.target===this)closeDetail()">
+  <div class="dpanel" id="detailPanel"></div>
+</div>
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
@@ -711,6 +740,85 @@ function closeDrawer(){ document.body.classList.remove('drawer-open'); }
 function toggleDrawer(){ drawerOpen()?closeDrawer():openDrawer(); }
 
 // ══════════════════════════════════════
+// KEY DETAIL — shared element transition
+// Kartu di grid "membesar" jadi modal detail via View Transitions API.
+// Nama 'card-zoom' hanya boleh ada di satu elemen per state: kartu di
+// state lama, panel di state baru (dan sebaliknya saat menutup).
+// ══════════════════════════════════════
+let detailId=null, dRevealed=false;
+function cardClick(ev,id){
+  if(ev.target.closest('button,.kval'))return;
+  openDetail(id);
+}
+function openDetail(id){
+  detailId=id; dRevealed=false;
+  const card=document.getElementById('ki-'+id);
+  const show=()=>{renderDetailBody();document.getElementById('detailModal').classList.add('open');document.body.style.overflow='hidden';};
+  if(document.startViewTransition&&!reduceMotion&&card){
+    card.style.viewTransitionName='card-zoom';
+    const t=document.startViewTransition(()=>{card.style.viewTransitionName='';show();});
+    t.finished.finally(()=>{card.style.viewTransitionName='';});
+  }else{
+    show();
+    if(!reduceMotion)
+      document.getElementById('detailPanel').animate(
+        [{opacity:0,transform:'scale(.94) translateY(10px)'},{opacity:1,transform:'none'}],
+        {duration:280,easing:'cubic-bezier(.22,1,.36,1)'});
+  }
+}
+function closeDetail(instant){
+  if(detailId==null)return;
+  const card=document.getElementById('ki-'+detailId);
+  detailId=null;
+  const hide=()=>{document.getElementById('detailModal').classList.remove('open');document.body.style.overflow='';};
+  if(!instant&&document.startViewTransition&&!reduceMotion&&card){
+    const t=document.startViewTransition(()=>{hide();card.style.viewTransitionName='card-zoom';});
+    t.finished.finally(()=>{card.style.viewTransitionName='';});
+  }else hide();
+}
+function renderDetailBody(){
+  const k=keys.find(k=>k.id==detailId);
+  if(!k){closeDetail(true);return;}
+  const p=P[k.provider];
+  const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
+  const panel=document.getElementById('detailPanel');
+  panel.style.setProperty('--pc',PC[k.provider]||'var(--accent)');
+  panel.innerHTML=`
+  <div class="dtop">
+    <div class="dtop-l">
+      <span class="pbadge ${p.badge}">${p.icon} ${p.name}</span>
+      <span class="sbadge s-${k.status}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
+    </div>
+    <button class="modal-x" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="dname">${esc(k.label)}</div>
+  <div class="dkeybox">
+    <span class="dkeyval" id="dKeyVal">${dRevealed?esc(k.value):mask(k.value)}</span>
+    <button class="btn btn-g btn-sm" onclick="detailToggleReveal()" title="Tampilkan/sembunyikan">${dRevealed?'🙈':'👁'}</button>
+    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id},this)" title="Salin key">📋</button>
+  </div>
+  <div class="dmeta">
+    <span class="dl">Ditambahkan</span><span class="dv">${absTime(k.addedAt)}</span>
+    <span class="dl">Cek terakhir</span><span class="dv">${absTime(k.lastCheck)} (${rel(k.lastCheck)})</span>
+    <span class="dl">Quota</span><span class="dv">${esc(p.quota)}</span>
+    <span class="dl">RPM</span><span class="dv">${esc(p.rpm)}</span>
+    <span class="dl">Speed</span><span class="dv">${esc(p.speed)}</span>
+    <span class="dl">Privacy</span><span class="dv">${esc(p.privacy)}</span>
+    ${k.detail?`<span class="dl">Hasil test</span><span class="dv" style="color:${k.status==='ok'?'#12B76A':'var(--red)'}">${esc(k.detail)}</span>`:''}
+  </div>
+  <div class="dactions">
+    <button class="btn btn-p btn-sm" onclick="testKey(${k.id})">⚡ Test</button>
+    <button class="btn btn-g btn-sm" onclick="editKey(${k.id})">✏️ Rename</button>
+    <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})">🗑 Hapus</button>
+  </div>`;
+}
+function detailToggleReveal(){
+  dRevealed=!dRevealed;
+  renderDetailBody();
+  if(dRevealed) setTimeout(()=>{if(dRevealed){dRevealed=false;if(detailId!=null)renderDetailBody();}},6000);
+}
+
+// ══════════════════════════════════════
 // SETTINGS MODAL
 // ══════════════════════════════════════
 function openSettings(){
@@ -835,6 +943,7 @@ function addKey(){
 }
 function deleteKey(id){
   if(!confirm('Hapus API key ini?'))return;
+  if(detailId==id) closeDetail(true);
   keys=keys.filter(k=>k.id!=id); saveKeys();
   updateStats(); flip(renderGroups);
   toast('Key dihapus','inf');
@@ -1311,7 +1420,7 @@ function toggleLocalSched(){
 // ══════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════
-const render=()=>{updateStats();renderGroups();};
+const render=()=>{updateStats();renderGroups();if(detailId!=null)renderDetailBody();};
 function setNum(id,val){
   const el=document.getElementById(id);if(!el)return;
   const cur=parseInt(el.textContent,10)||0;
@@ -1391,7 +1500,7 @@ function keyCard(k,i=0){
   const p=P[k.provider];
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
-  return `<div class="kcard" id="ki-${k.id}" style="--i:${i};--pc:${PC[k.provider]||'var(--accent)'}">
+  return `<div class="kcard" id="ki-${k.id}" style="--i:${i};--pc:${PC[k.provider]||'var(--accent)'}" onclick="cardClick(event,${k.id})" title="Klik untuk detail">
   <div class="kc-top">
     <span class="pbadge ${p.badge}">${p.icon} ${p.name}</span>
     <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
@@ -1514,7 +1623,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
-      if(drawerOpen()) closeDrawer();
+      if(detailId!=null) closeDetail();
+      else if(drawerOpen()) closeDrawer();
       else closeSettings();
     }
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();toggleDrawer();}
