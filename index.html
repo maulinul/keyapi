@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0B0C14">
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔑</text></svg>'>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>API Key Vault</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -806,6 +810,7 @@ function cpCommands(){
     {icon:'⬇️',label:'Export Vault (JSON)',sect:'Aksi',run:exportVault},
     {icon:'⬆️',label:'Import Vault (JSON)',sect:'Aksi',run:()=>document.getElementById('impFile').click()},
   ];
+  if(installEvt) cmds.push({icon:'📲',label:'Install Aplikasi',hint:'PWA',sect:'Aksi',run:installApp});
   const slbl={ok:'✅',fail:'❌',cors:'⚠',unknown:'❔',pending:'⏳'};
   for(const k of keys)
     cmds.push({icon:P[k.provider].icon,label:k.label,hint:(slbl[k.status]||'')+' '+P[k.provider].name,
@@ -1801,6 +1806,36 @@ function initParticles(){
 }
 
 // ══════════════════════════════════════
+// PWA — service worker, install prompt, shortcut
+// ══════════════════════════════════════
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;});
+window.addEventListener('appinstalled',()=>{installEvt=null;toast('Aplikasi ter-install ✓ Buka dari homescreen kapan saja','ok');});
+async function installApp(){
+  if(!installEvt){toast('Install belum tersedia — buka via HTTPS atau sudah ter-install','inf');return;}
+  installEvt.prompt();
+  const {outcome}=await installEvt.userChoice;
+  if(outcome==='accepted') installEvt=null;
+}
+function initPWA(){
+  if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('./sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(!nw) return;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller)
+          toast('🔄 Versi baru tersedia — muat ulang halaman untuk update','inf');
+      });
+    });
+  }).catch(()=>{});
+  // shortcut dari manifest: ./?action=add | ./?action=test
+  const act=new URLSearchParams(location.search).get('action');
+  if(act==='add') setTimeout(openDrawer,350);
+  else if(act==='test'&&keys.length) setTimeout(testAllKeys,350);
+}
+
+// ══════════════════════════════════════
 // INIT
 // ══════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
@@ -1834,6 +1869,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   });
   initParticles();
   window.addEventListener('load',mountLottie);
+  initPWA();
 });
 </script>
 </body>
