@@ -29,6 +29,7 @@
   --glow1:rgba(79,110,247,.22);--glow2:rgba(139,92,246,.20);--particle:130,150,255;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;transition:background var(--tr),color var(--tr);padding-bottom:40px;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(1200px 620px at 12% -12%,var(--glow1),transparent 60%),
@@ -195,7 +196,7 @@ select{cursor:pointer}
 .empty p{font-size:13px}
 
 /* ── TOAST ───────────────────────────────────────────── */
-.toast-wrap{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:7px;z-index:9999}
+.toast-wrap{position:fixed;bottom:92px;right:22px;display:flex;flex-direction:column;gap:7px;z-index:9999}
 .toast{background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 15px;box-shadow:var(--shm);font-size:12.5px;max-width:300px;animation:tIn .2s ease}
 .tok{border-left:3px solid #12B76A}.terr{border-left:3px solid #E8475F}.tinf{border-left:3px solid var(--accent)}
 @keyframes tIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
@@ -258,6 +259,77 @@ select{cursor:pointer}
 .s-pending .sdot{animation:sdotPulse 1.1s ease-in-out infinite}
 .snum{transition:color var(--tr)}
 
+/* ── PROVIDER ACCENT STRIPE ──────────────────────────── */
+.pgroup{position:relative}
+.pgroup::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--pc,var(--accent)),transparent 140%);opacity:.9;z-index:1;pointer-events:none}
+
+/* ── HOVER-TO-REVEAL ACTIONS ─────────────────────────── */
+@media(hover:hover) and (pointer:fine){
+  .kactions .btn{opacity:0;transform:translateX(10px);transition:opacity .2s ease,transform .28s cubic-bezier(.2,.9,.3,1.15),background var(--tr),color var(--tr),border-color var(--tr)}
+  .kactions .btn:nth-of-type(1){transition-delay:0s}
+  .kactions .btn:nth-of-type(2){transition-delay:.03s}
+  .kactions .btn:nth-of-type(3){transition-delay:.06s}
+  .kactions .btn:nth-of-type(4){transition-delay:.09s}
+  .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn{opacity:1;transform:none}
+}
+
+/* ── SHIMMER (key sedang dites) ──────────────────────── */
+.kitem{position:relative;overflow:hidden}
+.kitem.testing::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 30%,rgba(139,92,246,.12) 45%,rgba(79,110,247,.22) 50%,rgba(139,92,246,.12) 55%,transparent 70%);
+  background-size:250% 100%;animation:shimmer 1.15s linear infinite}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-60% 0}}
+
+/* ── STATUS GLOW ─────────────────────────────────────── */
+.s-ok .sdot{animation:glowOk 2.4s ease-in-out infinite}
+@keyframes glowOk{0%,100%{box-shadow:0 0 4px rgba(18,183,106,.35)}50%{box-shadow:0 0 10px rgba(18,183,106,.8)}}
+.s-fail .sdot{box-shadow:0 0 8px rgba(232,71,95,.5)}
+
+/* ── COPY MORPH ──────────────────────────────────────── */
+.btn.copied{color:#12B76A!important;border-color:rgba(18,183,106,.4)!important;background:rgba(18,183,106,.08)!important}
+
+/* ── RICH TOAST ──────────────────────────────────────── */
+.toast{display:flex;align-items:center;gap:9px}
+.toast .t-ic{font-size:15px;line-height:1;flex-shrink:0}
+.terr{animation:tIn .2s ease,tShake .4s ease .22s}
+@keyframes tShake{0%,100%{transform:none}25%{transform:translateX(-5px)}50%{transform:translateX(4px)}75%{transform:translateX(-2px)}}
+.t-svg{flex-shrink:0}
+.t-svg circle{stroke-dasharray:66;stroke-dashoffset:66;animation:tDraw .5s ease .05s forwards}
+.t-svg path{stroke-dasharray:24;stroke-dashoffset:24;animation:tDraw .35s ease .45s forwards}
+@keyframes tDraw{to{stroke-dashoffset:0}}
+
+/* ── FAB ─────────────────────────────────────────────── */
+.fab{position:fixed;bottom:24px;right:24px;z-index:940;width:54px;height:54px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#4F6EF7,#8B5CF6);color:#fff;font-size:27px;line-height:1;
+  box-shadow:0 8px 24px rgba(79,110,247,.45);display:flex;align-items:center;justify-content:center;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+.fab:hover{transform:scale(1.08);box-shadow:0 12px 30px rgba(79,110,247,.55)}
+body.drawer-open .fab{transform:rotate(45deg)}
+
+/* ── SLIDE-OVER DRAWER ───────────────────────────────── */
+.drawer-overlay{position:fixed;inset:0;z-index:950;background:rgba(8,10,18,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
+body.drawer-open .drawer-overlay{opacity:1;visibility:visible}
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:960;width:min(440px,100%);display:flex;flex-direction:column;
+  background:var(--glass);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border-left:1px solid var(--glass-brd);box-shadow:-18px 0 50px rgba(0,0,0,.35);
+  transform:translateX(105%);transition:transform .45s cubic-bezier(.3,1.15,.35,1);overflow-y:auto}
+body.drawer-open .drawer{transform:none}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.drawer-head h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
+.drawer-head .kbd{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--txt3);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+.drawer-body{padding:18px 20px 26px}
+.drawer .addbar{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;box-shadow:none;padding:0;margin:0}
+.drawer .addbar-row{flex-direction:column;align-items:stretch}
+.drawer .addbar-row .fg{width:100%;flex:0 0 auto}
+.drawer .addbar-row select,.drawer .addbar-row input{width:100%}
+.drawer .addbar-row .btn{justify-content:center;width:100%;padding:11px 16px}
+.wrap,.topbar{transition:transform .4s ease,filter .4s ease}
+body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blur(2px)}
+@media(max-width:640px){
+  .drawer{top:auto;left:0;right:0;width:100%;max-height:88vh;border-left:none;border-top:1px solid var(--glass-brd);border-radius:18px 18px 0 0;transform:translateY(105%)}
+  body.drawer-open .drawer{transform:none}
+}
+
 /* ── REDUCED MOTION ──────────────────────────────────── */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
@@ -316,7 +388,36 @@ select{cursor:pointer}
   <!-- CLOUD CHECK INFO -->
   <div class="cloudbar" id="cloudBar" hidden></div>
 
-  <!-- ADD KEY (compact) -->
+  <!-- KEY GROUPS -->
+  <div class="section-bar">
+    <h2>🔑 API Keys</h2>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g btn-sm" onclick="openDrawer()">＋ Tambah Key</button>
+      <button class="btn btn-p btn-sm" onclick="testAllKeys()">⚡ Test Semua</button>
+    </div>
+  </div>
+  <div class="filterbar" id="filterBar" hidden>
+    <input class="fsearch" type="search" id="fSearch" placeholder="🔍 Cari label / provider..." oninput="setFilterQ(this.value)">
+    <div class="fchips">
+      <button class="fchip active" data-s="all" onclick="setFilterS('all')">Semua</button>
+      <button class="fchip" data-s="ok" onclick="setFilterS('ok')">✅ Valid</button>
+      <button class="fchip" data-s="fail" onclick="setFilterS('fail')">❌ Gagal</button>
+      <button class="fchip" data-s="cors" onclick="setFilterS('cors')">⚠ CORS</button>
+      <button class="fchip" data-s="unknown" onclick="setFilterS('unknown')">❔ Belum</button>
+    </div>
+  </div>
+  <div class="groups" id="groupsWrap"></div>
+
+</div><!-- /.wrap -->
+
+<!-- ADD KEY DRAWER -->
+<div class="drawer-overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="addDrawer" aria-label="Tambah API Key">
+  <div class="drawer-head">
+    <h2>➕ Tambah API Key <span class="kbd">Ctrl+K</span></h2>
+    <button class="modal-x" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
   <div class="addbar">
     <div class="addbar-row">
       <div class="fg provsel">
@@ -355,24 +456,10 @@ select{cursor:pointer}
     </div>
   </div>
 
-  <!-- KEY GROUPS -->
-  <div class="section-bar">
-    <h2>🔑 API Keys</h2>
-    <button class="btn btn-p btn-sm" onclick="testAllKeys()">⚡ Test Semua</button>
-  </div>
-  <div class="filterbar" id="filterBar" hidden>
-    <input class="fsearch" type="search" id="fSearch" placeholder="🔍 Cari label / provider..." oninput="setFilterQ(this.value)">
-    <div class="fchips">
-      <button class="fchip active" data-s="all" onclick="setFilterS('all')">Semua</button>
-      <button class="fchip" data-s="ok" onclick="setFilterS('ok')">✅ Valid</button>
-      <button class="fchip" data-s="fail" onclick="setFilterS('fail')">❌ Gagal</button>
-      <button class="fchip" data-s="cors" onclick="setFilterS('cors')">⚠ CORS</button>
-      <button class="fchip" data-s="unknown" onclick="setFilterS('unknown')">❔ Belum</button>
-    </div>
-  </div>
-  <div class="groups" id="groupsWrap"></div>
+  </div><!-- /.drawer-body -->
+</aside>
 
-</div><!-- /.wrap -->
+<button class="fab" onclick="toggleDrawer()" title="Tambah key (Ctrl+K)">+</button>
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
@@ -513,6 +600,9 @@ const P = {
   qwen:         {name:'Qwen',         icon:'🟣',badge:'b-qwen',     quota:'Varies',     rpm:'60',    speed:'Sedang',     privacy:'Privat',                cors:true},
   claude:       {name:'Claude',       icon:'🟤',badge:'b-claude',   quota:'Varies',     rpm:'50',    speed:'Sedang',     privacy:'Privat, no training',   cors:true}
 };
+// warna aksen stripe per provider (selaras dengan badge)
+const PC = {groq:'#FF6B35',gemini:'#00B4D8',cerebras:'#F59E0B',mistral:'#F97316',
+  openrouter:'#12B76A',github_models:'#6366F1',deepseek:'#0080FF',qwen:'#7C3AED',claude:'#D97706'};
 const SCHED  = {3600000:'1 jam',21600000:'6 jam',43200000:'12 jam',86400000:'24 jam'};
 const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * *',86400000:'0 0 * * *'};
 
@@ -587,6 +677,17 @@ function setCollapse(el, show){
     requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.maxHeight='0px';el.style.opacity='0';}));
   }
 }
+// ══════════════════════════════════════
+// ADD-KEY DRAWER
+// ══════════════════════════════════════
+const drawerOpen=()=>document.body.classList.contains('drawer-open');
+function openDrawer(){
+  document.body.classList.add('drawer-open');
+  setTimeout(()=>document.getElementById('inpKey').focus(),reduceMotion?0:400);
+}
+function closeDrawer(){ document.body.classList.remove('drawer-open'); }
+function toggleDrawer(){ drawerOpen()?closeDrawer():openDrawer(); }
+
 // ══════════════════════════════════════
 // SETTINGS MODAL
 // ══════════════════════════════════════
@@ -691,13 +792,24 @@ function addKey(){
   const dup=keys.find(k=>k.value===val);
   if(dup){toast('⚠️ Key ini sudah tersimpan sebagai "'+dup.label+'" ('+P[dup.provider].name+')','err');return;}
   const n=keys.filter(k=>k.provider===prov).length+1;
-  keys.push({id:Date.now()+Math.random(),provider:prov,
+  const nk={id:Date.now()+Math.random(),provider:prov,
     label:lbl||(P[prov].name+' #'+n),
-    value:val,status:'unknown',lastCheck:null,addedAt:new Date().toISOString()});
+    value:val,status:'unknown',lastCheck:null,addedAt:new Date().toISOString()};
+  keys.push(nk);
   saveKeys();
   document.getElementById('inpLabel').value='';
   document.getElementById('inpKey').value='';
-  staggerNext=true; render(); toast('Key ditambahkan ✓','ok');
+  closeDrawer();
+  render(); toast('Key ditambahkan ✓','ok');
+  // pop-in kartu baru (WAAPI)
+  requestAnimationFrame(()=>{
+    const el=document.getElementById('ki-'+nk.id);
+    if(el&&!reduceMotion){
+      el.animate([{opacity:0,transform:'translateY(-12px) scale(.96)'},{opacity:1,transform:'none'}],
+        {duration:420,easing:'cubic-bezier(.22,1.2,.36,1)'});
+      el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+  });
 }
 function deleteKey(id){
   if(!confirm('Hapus API key ini?'))return;
@@ -722,9 +834,19 @@ function toggleReveal(id){
   if(el.dataset.r==='1'){el.textContent=mask(k.value);el.dataset.r='0';}
   else{el.textContent=k.value;el.dataset.r='1';setTimeout(()=>{el.textContent=mask(k.value);el.dataset.r='0';},6000);}
 }
-function copyKey(id){
+function copyKey(id,btn){
   const k=keys.find(k=>k.id==id);if(!k)return;
-  navigator.clipboard.writeText(k.value).then(()=>toast('Key disalin ✓','ok')).catch(()=>toast('Gagal menyalin','err'));
+  navigator.clipboard.writeText(k.value).then(()=>{
+    toast('Key disalin ✓','ok');
+    if(btn){
+      const orig=btn.textContent;
+      btn.textContent='✔';btn.classList.add('copied');
+      const ki=btn.closest('.kitem');
+      if(ki&&!reduceMotion)
+        ki.animate([{transform:'translateY(0)'},{transform:'translateY(-2px)'},{transform:'translateY(0)'}],{duration:320,easing:'ease'});
+      setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied');},1600);
+    }
+  }).catch(()=>toast('Gagal menyalin','err'));
 }
 
 // ══════════════════════════════════════
@@ -862,6 +984,8 @@ async function testAllKeys(){
   await runBatch(keys.slice());
 }
 function setStatus(id,s){
+  const ki=document.getElementById('ki-'+id);
+  if(ki) ki.classList.toggle('testing',s==='pending');
   const el=document.getElementById('sb-'+id);if(!el)return;
   const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
   el.className='sbadge s-'+s;
@@ -1211,7 +1335,7 @@ function renderGroups(){
   let idx=0;
   wrap.innerHTML=Object.entries(groups).map(([pk,grp])=>{
     const p=P[pk],open=!col[pk];
-    return `<div class="pgroup">
+    return `<div class="pgroup" style="--pc:${PC[pk]||'var(--accent)'}">
   <div class="phead" onclick="toggleGroup('${pk}')">
     <div class="phead-l"><span class="pbadge ${p.badge}">${p.icon} ${p.name}</span><span class="pcount">${grp.length} key${grp.length>1?'s':''}</span></div>
     <div class="phead-r"><button class="btn btn-g btn-sm" onclick="event.stopPropagation();testGroupKeys('${pk}')">⚡ Test semua</button><span class="chev ${open?'open':''}" id="chev-${pk}">▼</span></div>
@@ -1237,7 +1361,7 @@ function keyItem(k,i=0){
     <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
     <button class="btn btn-g btn-sm" onclick="testKey(${k.id})" title="Test key">⚡</button>
     <button class="btn btn-g btn-sm" onclick="editKey(${k.id})" title="Ubah label">✏️</button>
-    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id})" title="Salin key">📋</button>
+    <button class="btn btn-g btn-sm" onclick="copyKey(${k.id},this)" title="Salin key">📋</button>
     <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})" title="Hapus key">🗑</button>
   </div>
 </div>`;
@@ -1256,7 +1380,12 @@ function toggleGroup(pk){
 function toast(msg,type='inf'){
   const wrap=document.getElementById('toastWrap'),el=document.createElement('div');
   el.className='toast '+({ok:'tok',err:'terr',inf:'tinf'}[type]||'tinf');
-  el.textContent=msg; wrap.appendChild(el);
+  const clean=String(msg).replace(/^[✅❌⚠️ℹ️]+\s*/,'');
+  const ic=type==='ok'
+    ?'<svg class="t-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="#12B76A" stroke-width="2"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#12B76A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    :type==='err'?'<span class="t-ic">⚠️</span>':'<span class="t-ic">ℹ️</span>';
+  el.innerHTML=ic+'<span>'+esc(clean)+'</span>';
+  wrap.appendChild(el);
   setTimeout(()=>{el.style.animation='tOut .25s ease forwards';setTimeout(()=>el.remove(),260);},3200);
 }
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1348,7 +1477,13 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(gid) document.getElementById('inpGistId').value=gid;
   render(); renderSettings(); updateProvInfo(); updateSyncStatus(); renderCloudBar();
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+      if(drawerOpen()) closeDrawer();
+      else closeSettings();
+    }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();toggleDrawer();}
+  });
   initParticles();
 });
 </script>
