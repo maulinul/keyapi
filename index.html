@@ -121,8 +121,22 @@ select{cursor:pointer}
 .btn-r:hover{background:rgba(232,71,95,.08);border-color:rgba(232,71,95,.3)}
 .btn-sm{padding:5px 10px;font-size:11.5px}
 
-/* ── GROUPS ──────────────────────────────────────────── */
-.groups{display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+/* ── BENTO GRID ──────────────────────────────────────── */
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:14px}
+.groups .pgroup{grid-column:1/-1}
+.kcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:7px;
+  background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
+  border:1px solid var(--glass-brd);border-radius:var(--r);padding:14px 16px 12px;box-shadow:var(--sh);
+  transition:transform var(--tr),box-shadow var(--tr)}
+.kcard:hover{transform:translateY(-3px);box-shadow:var(--shm)}
+.kcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--pc,var(--accent)),transparent 140%);opacity:.9;pointer-events:none}
+.kc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.kcard .kname{margin-bottom:0}
+.kcard .kmeta{margin-top:0}
+.kcard .kdetail{margin-top:0}
+.kcard .kactions{margin-top:auto;padding-top:8px;justify-content:flex-end}
+
+/* ── GROUPS (empty state shell) ──────────────────────── */
 .pgroup{background:var(--glass);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--glass-brd);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow var(--tr)}
 .pgroup:hover{box-shadow:var(--shm)}
 .phead{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none;transition:background var(--tr)}
@@ -251,11 +265,13 @@ select{cursor:pointer}
 .fchip{background:var(--glass);border:1px solid var(--glass-brd);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--txt2);transition:all var(--tr)}
 .fchip:hover{color:var(--txt);border-color:var(--accent)}
 .fchip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 3px 10px rgba(79,110,247,.35)}
+.fsel{background:var(--glass);border:1px solid var(--glass-brd);border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--txt2);cursor:pointer;outline:none;transition:all var(--tr)}
+.fsel:hover,.fsel:focus{color:var(--txt);border-color:var(--accent)}
 
 /* ── ENTRANCE + PULSE ────────────────────────────────── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes sdotPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.5)}50%{box-shadow:0 0 0 4px rgba(245,158,11,0)}}
-.stagger .kitem{animation:fadeUp .32s ease backwards;animation-delay:calc(var(--i,0)*32ms)}
+.stagger .kitem,.stagger .kcard{animation:fadeUp .32s ease backwards;animation-delay:calc(var(--i,0)*32ms)}
 .s-pending .sdot{animation:sdotPulse 1.1s ease-in-out infinite}
 .snum{transition:color var(--tr)}
 
@@ -270,12 +286,13 @@ select{cursor:pointer}
   .kactions .btn:nth-of-type(2){transition-delay:.03s}
   .kactions .btn:nth-of-type(3){transition-delay:.06s}
   .kactions .btn:nth-of-type(4){transition-delay:.09s}
-  .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn{opacity:1;transform:none}
+  .kitem:hover .kactions .btn,.kitem:focus-within .kactions .btn,
+  .kcard:hover .kactions .btn,.kcard:focus-within .kactions .btn{opacity:1;transform:none}
 }
 
 /* ── SHIMMER (key sedang dites) ──────────────────────── */
 .kitem{position:relative;overflow:hidden}
-.kitem.testing::after{content:'';position:absolute;inset:0;pointer-events:none;
+.kitem.testing::after,.kcard.testing::after{content:'';position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(100deg,transparent 30%,rgba(139,92,246,.12) 45%,rgba(79,110,247,.22) 50%,rgba(139,92,246,.12) 55%,transparent 70%);
   background-size:250% 100%;animation:shimmer 1.15s linear infinite}
 @keyframes shimmer{from{background-position:200% 0}to{background-position:-60% 0}}
@@ -405,6 +422,12 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
       <button class="fchip" data-s="cors" onclick="setFilterS('cors')">⚠ CORS</button>
       <button class="fchip" data-s="unknown" onclick="setFilterS('unknown')">❔ Belum</button>
     </div>
+    <select class="fsel" id="fSort" onchange="setSort(this.value)" title="Urutkan">
+      <option value="provider">↕ Provider</option>
+      <option value="status">↕ Status</option>
+      <option value="newest">↕ Terbaru</option>
+      <option value="label">↕ Label</option>
+    </select>
   </div>
   <div class="groups" id="groupsWrap"></div>
 
@@ -611,8 +634,7 @@ const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * 
 // ══════════════════════════════════════
 let keys=[], settings={ghToken:'',gistToken:''};
 let isDark=false, localTimer=null, localOn=false, staggerNext=true;
-let fQ='', fS='all', batchMode=false;
-const col={};
+let fQ='', fS='all', fSort='provider', batchMode=false;
 const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 // waktu relatif ringkas; nilai absolut tetap tersedia via title
@@ -813,7 +835,9 @@ function addKey(){
 }
 function deleteKey(id){
   if(!confirm('Hapus API key ini?'))return;
-  keys=keys.filter(k=>k.id!=id); saveKeys(); render(); toast('Key dihapus','inf');
+  keys=keys.filter(k=>k.id!=id); saveKeys();
+  updateStats(); flip(renderGroups);
+  toast('Key dihapus','inf');
 }
 function editKey(id){
   const k=keys.find(k=>k.id==id);if(!k)return;
@@ -971,12 +995,6 @@ async function runBatch(list){
   }));
   batchEnd(); batchMode=false;
   batchSummary(list);
-}
-async function testGroupKeys(prov){
-  const grp=keys.filter(k=>k.provider===prov);
-  if(!grp.length)return;
-  toast('Testing '+grp.length+' '+P[prov].name+' keys...','inf');
-  await runBatch(grp);
 }
 async function testAllKeys(){
   if(!keys.length){toast('Belum ada key','inf');return;}
@@ -1312,66 +1330,83 @@ function updateStats(){
 const keyMatches=k=>
   (fS==='all'||k.status===fS)&&
   (!fQ||k.label.toLowerCase().includes(fQ)||P[k.provider].name.toLowerCase().includes(fQ)||k.provider.includes(fQ));
-function setFilterQ(v){ fQ=v.trim().toLowerCase(); renderGroups(); }
+function setFilterQ(v){ fQ=v.trim().toLowerCase(); flip(renderGroups); }
 function setFilterS(s){
   fS=s;
   document.querySelectorAll('.fchip').forEach(b=>b.classList.toggle('active',b.dataset.s===s));
-  renderGroups();
+  flip(renderGroups);
 }
+function setSort(v){ fSort=v; flip(renderGroups); }
+
+// FLIP (First-Last-Invert-Play): kartu "terbang" ke posisi barunya
+// saat filter/sort berubah, alih-alih jump-cut.
+function flip(rerender){
+  const wrap=document.getElementById('groupsWrap');
+  if(reduceMotion){rerender();return;}
+  const first={};
+  wrap.querySelectorAll('.kcard').forEach(el=>{first[el.id]=el.getBoundingClientRect();});
+  rerender();
+  wrap.querySelectorAll('.kcard').forEach(el=>{
+    const f=first[el.id];
+    if(!f){ // kartu baru muncul (lolos filter): pop-in
+      el.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'none'}],{duration:300,easing:'ease'});
+      return;
+    }
+    const l=el.getBoundingClientRect(),dx=f.left-l.left,dy=f.top-l.top;
+    if(dx||dy)
+      el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],
+        {duration:400,easing:'cubic-bezier(.22,1,.36,1)'});
+  });
+}
+
+const PORDER=Object.keys(P);
+const SORDER={ok:0,pending:1,unknown:2,cors:3,fail:4};
+function sortList(l){
+  if(fSort==='status')      l.sort((a,b)=>(SORDER[a.status]??9)-(SORDER[b.status]??9)||a.label.localeCompare(b.label));
+  else if(fSort==='newest') l.sort((a,b)=>(b.addedAt||'').localeCompare(a.addedAt||''));
+  else if(fSort==='label')  l.sort((a,b)=>a.label.localeCompare(b.label));
+  else                      l.sort((a,b)=>PORDER.indexOf(a.provider)-PORDER.indexOf(b.provider)||a.label.localeCompare(b.label));
+}
+
 function renderGroups(){
   const wrap=document.getElementById('groupsWrap');
   document.getElementById('filterBar').hidden=!keys.length;
-  const groups={};
-  for(const pk of Object.keys(P)){const g=keys.filter(k=>k.provider===pk&&keyMatches(k));if(g.length)groups[pk]=g;}
+  const list=keys.filter(keyMatches);
+  sortList(list);
   const doStagger=staggerNext&&!reduceMotion;
   wrap.classList.toggle('stagger',doStagger);
-  if(!Object.keys(groups).length){
+  if(!list.length){
     wrap.classList.remove('stagger');
     wrap.innerHTML=keys.length
       ?'<div class="pgroup"><div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada key yang cocok dengan filter.</p></div></div>'
-      :'<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Tambahkan di atas.</p></div></div>';
+      :'<div class="pgroup"><div class="empty"><div class="empty-icon">🔑</div><p>Belum ada API key. Klik tombol <b>＋</b> atau tekan <b>Ctrl+K</b> untuk menambahkan.</p></div></div>';
     staggerNext=false;return;
   }
-  let idx=0;
-  wrap.innerHTML=Object.entries(groups).map(([pk,grp])=>{
-    const p=P[pk],open=!col[pk];
-    return `<div class="pgroup" style="--pc:${PC[pk]||'var(--accent)'}">
-  <div class="phead" onclick="toggleGroup('${pk}')">
-    <div class="phead-l"><span class="pbadge ${p.badge}">${p.icon} ${p.name}</span><span class="pcount">${grp.length} key${grp.length>1?'s':''}</span></div>
-    <div class="phead-r"><button class="btn btn-g btn-sm" onclick="event.stopPropagation();testGroupKeys('${pk}')">⚡ Test semua</button><span class="chev ${open?'open':''}" id="chev-${pk}">▼</span></div>
-  </div>
-  <div class="pbody${open?'':' collapsed'}" id="pb-${pk}" data-collapsed="${open?'0':'1'}">${grp.map(k=>keyItem(k,idx++)).join('')}</div>
-</div>`;
-  }).join('');
+  wrap.innerHTML=list.map((k,i)=>keyCard(k,i)).join('');
   if(doStagger) setTimeout(()=>wrap.classList.remove('stagger'),800);
   staggerNext=false;
 }
-function keyItem(k,i=0){
+function keyCard(k,i=0){
   const lbl={ok:'Valid',fail:'Gagal',pending:'Testing…',unknown:'Belum dicek',cors:'Browser Blocked'};
+  const p=P[k.provider];
   const date=k.addedAt?new Date(k.addedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const detailLine=(k.status==='fail'&&k.detail)?`<div class="kdetail" title="${esc(k.detail)}">⚠ ${esc(k.detail)}</div>`:'';
-  return `<div class="kitem" id="ki-${k.id}" style="--i:${i}">
-  <div class="kinfo">
-    <div class="kname">${esc(k.label)}</div>
-    <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
-    <div class="kmeta" title="Ditambahkan: ${date} · Cek terakhir: ${absTime(k.lastCheck)}">+ ${date} · cek: ${rel(k.lastCheck)}</div>
-    ${detailLine}
-  </div>
-  <div class="kactions">
+  return `<div class="kcard" id="ki-${k.id}" style="--i:${i};--pc:${PC[k.provider]||'var(--accent)'}">
+  <div class="kc-top">
+    <span class="pbadge ${p.badge}">${p.icon} ${p.name}</span>
     <span class="sbadge s-${k.status}" id="sb-${k.id}" title="${esc(k.detail||'')}"><span class="sdot"></span>${lbl[k.status]||'?'}</span>
+  </div>
+  <div class="kname">${esc(k.label)}</div>
+  <div class="kval" id="kv-${k.id}" data-r="0" onclick="toggleReveal(${k.id})" title="Klik untuk tampilkan/sembunyikan">${mask(k.value)}</div>
+  <div class="kmeta" title="Ditambahkan: ${date} · Cek terakhir: ${absTime(k.lastCheck)}">+ ${date} · cek: ${rel(k.lastCheck)}</div>
+  ${detailLine}
+  <div class="kactions">
     <button class="btn btn-g btn-sm" onclick="testKey(${k.id})" title="Test key">⚡</button>
     <button class="btn btn-g btn-sm" onclick="editKey(${k.id})" title="Ubah label">✏️</button>
     <button class="btn btn-g btn-sm" onclick="copyKey(${k.id},this)" title="Salin key">📋</button>
     <button class="btn btn-r btn-sm" onclick="deleteKey(${k.id})" title="Hapus key">🗑</button>
   </div>
 </div>`;
-}
-function toggleGroup(pk){
-  col[pk]=!col[pk];
-  const open=!col[pk];
-  const body=document.getElementById('pb-'+pk),chev=document.getElementById('chev-'+pk);
-  if(body){ body.classList.remove('collapsed'); setCollapse(body,open); body.dataset.collapsed=open?'0':'1'; }
-  if(chev) chev.classList.toggle('open',open);
 }
 
 // ══════════════════════════════════════
