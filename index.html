@@ -57,6 +57,11 @@ select,input{font-family:inherit}
 .logo h1{font-size:16px;font-weight:800;line-height:1.1;background:linear-gradient(90deg,var(--txt),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.01em}
 .logo span{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
 .topbar-r{display:flex;align-items:center;gap:8px}
+.tbtn-sched .sched-time{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.tbtn-sched.on{background:rgba(18,183,106,.12);border-color:rgba(18,183,106,.4);color:#12B76A}
+.tbtn-sched.on:hover{background:rgba(18,183,106,.2);color:#0e9a58}
+.tbtn-sched.on .ic{animation:schedPulse 1.6s ease-in-out infinite}
+@keyframes schedPulse{0%,100%{opacity:1}50%{opacity:.45}}
 .tbtn{position:relative;display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--txt2);transition:all var(--tr)}
 .tbtn:hover{background:var(--border);color:var(--txt);transform:translateY(-1px);box-shadow:var(--shm)}
 .tbtn .ic{font-size:14px;line-height:1}
@@ -214,6 +219,10 @@ select{cursor:pointer}
 .sched-pill{font-size:11.5px;font-family:'JetBrains Mono',monospace;padding:6px 12px;border-radius:6px;background:var(--surface2);color:var(--txt3);border:1px solid var(--border)}
 .sched-pill.active{background:rgba(18,183,106,.08);color:#12B76A;border-color:rgba(18,183,106,.2)}
 .ml-auto{margin-left:auto}
+.int-row{display:flex;gap:6px;align-items:center}
+.int-row .int-num{width:74px;text-align:center}
+.int-row .int-unit{cursor:pointer}
+.int-hint{font-size:10.5px;color:var(--txt3);margin-top:5px;line-height:1.4}
 
 /* ── EMPTY ───────────────────────────────────────────── */
 .empty{padding:40px 20px;text-align:center;color:var(--txt3)}
@@ -452,6 +461,9 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
     </div>
   </div>
   <div class="topbar-r">
+    <button class="tbtn tbtn-sched" id="schedBtn" onclick="schedToggle()" title="Scheduler otomatis (test semua key berkala)">
+      <span class="ic" id="schedIco">▶</span><span class="sched-time" id="schedTime" hidden></span>
+    </button>
     <button class="tbtn tbtn-ico" onclick="toggleTheme()" title="Ganti tema"><span class="ic" id="tIco">🌙</span></button>
     <button class="tbtn" onclick="openSettings()" title="Pengaturan">
       <span class="ic gear">⚙️</span><span class="tbtn-lbl">Settings</span>
@@ -650,15 +662,18 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
         <div class="form-row">
           <div class="fg">
             <label>Interval Check</label>
-            <select id="selCloud">
-              <option value="3600000">Setiap 1 jam</option>
-              <option value="21600000" selected>Setiap 6 jam</option>
-              <option value="43200000">Setiap 12 jam</option>
-              <option value="86400000">Setiap 24 jam</option>
-            </select>
+            <div class="int-row">
+              <input class="inp int-num" type="number" id="cloudVal" min="1" value="6" oninput="updateCronPreview()">
+              <select class="inp int-unit" id="cloudUnit" onchange="updateCronPreview()">
+                <option value="m">Menit</option>
+                <option value="h" selected>Jam</option>
+                <option value="d">Hari</option>
+              </select>
+            </div>
           </div>
           <button class="btn btn-p btn-sm" onclick="genWorkflow()" style="align-self:flex-end">⬇️ Download Workflow YAML</button>
         </div>
+        <div class="int-hint" id="cronHint"></div>
         <div class="instr-box">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin-bottom:6px">📋 Setup 4 Langkah</div>
           <div class="instr-steps">
@@ -677,17 +692,19 @@ body.drawer-open .wrap,body.drawer-open .topbar{transform:scale(.985);filter:blu
         <div class="sched-row">
           <div class="fg">
             <label>Interval</label>
-            <select id="selLocal">
-              <option value="0">— Nonaktif</option>
-              <option value="3600000">Setiap 1 jam</option>
-              <option value="21600000">Setiap 6 jam</option>
-              <option value="43200000">Setiap 12 jam</option>
-              <option value="86400000">Setiap 24 jam</option>
-            </select>
+            <div class="int-row">
+              <input class="inp int-num" type="number" id="localVal" min="1" value="6">
+              <select class="inp int-unit" id="localUnit">
+                <option value="m">Menit</option>
+                <option value="h" selected>Jam</option>
+                <option value="d">Hari</option>
+              </select>
+            </div>
           </div>
-          <button class="btn btn-g" id="localBtn" onclick="toggleLocalSched()" style="align-self:flex-end">▶ Aktifkan</button>
+          <button class="btn btn-g" id="localBtn" onclick="schedToggle()" style="align-self:flex-end">▶ Aktifkan</button>
           <div class="sched-pill" id="localPill" style="align-self:flex-end">Belum dijadwalkan</div>
         </div>
+        <div class="int-hint">Scheduler menjalankan <strong>Test Semua</strong> otomatis tiap interval, selama tab browser terbuka. Tombol ▶ juga ada di topbar dengan hitung mundur. Berjalan meski tab tidak aktif; berhenti saat tab ditutup — untuk 24/7 gunakan Cloud Scheduler di atas.</div>
       </div>
 
     </div>
@@ -714,14 +731,27 @@ const P = {
 // warna aksen stripe per provider (selaras dengan badge)
 const PC = {groq:'#FF6B35',gemini:'#00B4D8',cerebras:'#F59E0B',mistral:'#F97316',
   openrouter:'#12B76A',github_models:'#6366F1',deepseek:'#0080FF',qwen:'#7C3AED',claude:'#D97706'};
-const SCHED  = {3600000:'1 jam',21600000:'6 jam',43200000:'12 jam',86400000:'24 jam'};
-const CRON   = {3600000:'0 * * * *',21600000:'0 */6 * * *',43200000:'0 */12 * * *',86400000:'0 0 * * *'};
+// interval custom — satuan → milidetik, dan konversi ke cron
+const UNIT_MS={m:60000,h:3600000,d:86400000};
+const UNIT_LBL={m:'menit',h:'jam',d:'hari'};
+function unitCron(val,unit){
+  val=Math.max(1,Math.floor(val)||1);
+  if(unit==='m') return val>=60?'0 * * * *':`*/${val} * * * *`;
+  if(unit==='h') return val>=24?'0 0 * * *':`0 */${val} * * *`;
+  return val>=28?'0 0 1 * *':`0 0 */${val} * *`;   // hari
+}
+function humanInterval(ms){
+  if(ms%UNIT_MS.d===0) return (ms/UNIT_MS.d)+' hari';
+  if(ms%UNIT_MS.h===0) return (ms/UNIT_MS.h)+' jam';
+  return Math.round(ms/UNIT_MS.m)+' menit';
+}
 
 // ══════════════════════════════════════
 // STATE
 // ══════════════════════════════════════
 let keys=[], settings={ghToken:'',gistToken:''};
-let isDark=false, localTimer=null, localOn=false, staggerNext=true;
+let isDark=false, staggerNext=true;
+let localOn=false, schedMs=0, schedNext=0, schedTick=null;
 let fQ='', fS='all', fSort='provider', batchMode=false;
 const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
@@ -821,6 +851,7 @@ function cpCommands(){
   const cmds=[
     {icon:'➕',label:'Tambah API Key',hint:'drawer',sect:'Aksi',run:openDrawer},
     {icon:'⚡',label:'Test Semua Key',hint:keys.length+' key',sect:'Aksi',run:testAllKeys},
+    {icon:localOn?'⏸':'▶',label:localOn?'Matikan Scheduler':'Nyalakan Scheduler',hint:localOn?humanInterval(schedMs):'',sect:'Aksi',run:schedToggle},
     {icon:isDark?'☀️':'🌙',label:'Ganti Tema '+(isDark?'Terang':'Gelap'),sect:'Aksi',run:toggleTheme},
     {icon:'⚙️',label:'Buka Pengaturan',sect:'Aksi',run:openSettings},
     {icon:'⬇️',label:'Export Vault (JSON)',sect:'Aksi',run:exportVault},
@@ -1371,9 +1402,20 @@ function importVault(inp){
 // ══════════════════════════════════════
 // WORKFLOW GENERATOR
 // ══════════════════════════════════════
+function readCloudInterval(){
+  const v=Math.max(1,parseInt(document.getElementById('cloudVal').value)||1);
+  const u=document.getElementById('cloudUnit').value;
+  return {val:v,unit:u,cron:unitCron(v,u),human:v+' '+UNIT_LBL[u]};
+}
+function updateCronPreview(){
+  const el=document.getElementById('cronHint'); if(!el)return;
+  const c=readCloudInterval();
+  let warn='';
+  if(c.unit==='m'&&c.val<5) warn=' ⚠️ GitHub Actions minimum ~5 menit — interval lebih pendek akan dibulatkan naik & bisa tertunda.';
+  el.innerHTML='Cron: <span class="mono">'+c.cron+'</span> · tiap '+c.human+'.'+warn;
+}
 function genWorkflow(){
-  const ms=parseInt(document.getElementById('selCloud').value)||21600000;
-  const cron=CRON[ms]||'0 */6 * * *';
+  const cron=readCloudInterval().cron;
   const yaml=
 `# API Key Vault — Cloud Health Check
 # punakawan.tools | Generated automatically
@@ -1544,21 +1586,76 @@ jobs:
 // ══════════════════════════════════════
 // LOCAL SCHEDULER
 // ══════════════════════════════════════
-function toggleLocalSched(){
+// Ticker 1 detik: bandingkan waktu sekarang dgn schedNext (tahan throttling
+// tab background & drift), jalankan Test Semua saat jatuh tempo, update
+// hitung mundur di topbar. State di-persist agar bertahan setelah reload.
+function fmtCountdown(ms){
+  if(ms<0)ms=0;
+  const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60,p=n=>String(n).padStart(2,'0');
+  return h>0?p(h)+':'+p(m)+':'+p(sec):p(m)+':'+p(sec);
+}
+function readLocalInterval(){
+  const v=parseInt(document.getElementById('localVal').value)||0;
+  const u=document.getElementById('localUnit').value;
+  return v>0?v*UNIT_MS[u]:0;
+}
+function setLocalInterval(ms){
+  const v=document.getElementById('localVal'),u=document.getElementById('localUnit');
+  if(!v||!u)return;
+  if(ms%UNIT_MS.d===0){v.value=ms/UNIT_MS.d;u.value='d';}
+  else if(ms%UNIT_MS.h===0){v.value=ms/UNIT_MS.h;u.value='h';}
+  else{v.value=Math.round(ms/UNIT_MS.m);u.value='m';}
+}
+function persistSched(){
+  try{localStorage.setItem('apivault_sched',JSON.stringify({on:localOn,ms:schedMs,next:schedNext}));}catch(_){}
+}
+function schedStart(ms,resumeNext){
+  schedMs=ms; localOn=true;
+  schedNext=resumeNext&&resumeNext>Date.now()?resumeNext:Date.now()+ms;
+  clearInterval(schedTick);
+  schedTick=setInterval(()=>{
+    if(Date.now()>=schedNext){
+      schedNext=Date.now()+schedMs; persistSched();
+      if(!batchMode) testAllKeys();
+    }
+    updateSchedUI();
+  },1000);
+  persistSched(); updateSchedUI();
+}
+function schedStop(){
+  clearInterval(schedTick); schedTick=null; localOn=false; schedNext=0;
+  persistSched(); updateSchedUI();
+}
+function schedToggle(){
+  if(localOn){ schedStop(); toast('Scheduler dinonaktifkan','inf'); return; }
+  const ms=readLocalInterval();
+  if(!ms||ms<UNIT_MS.m){ toast('Interval minimal 1 menit','err'); openSettings(); switchTab('sched'); return; }
+  if(!keys.length) toast('Belum ada key — scheduler tetap aktif','inf');
+  schedStart(ms);
+  toast('Scheduler aktif · tiap '+humanInterval(ms)+' ✓','ok');
+}
+function updateSchedUI(){
+  const btn=document.getElementById('schedBtn'),ico=document.getElementById('schedIco'),tm=document.getElementById('schedTime');
   if(localOn){
-    clearInterval(localTimer);localTimer=null;localOn=false;
-    document.getElementById('localBtn').textContent='▶ Aktifkan';
-    document.getElementById('localPill').textContent='Belum dijadwalkan';
-    document.getElementById('localPill').classList.remove('active');
-    toast('Local scheduler dinonaktifkan','inf');return;
+    btn.classList.add('on'); ico.textContent='⏸';
+    tm.hidden=false; tm.textContent=fmtCountdown(schedNext-Date.now());
+    btn.title='Scheduler aktif · tiap '+humanInterval(schedMs)+' · test berikutnya '+fmtCountdown(schedNext-Date.now())+' · klik untuk berhenti';
+  }else{
+    btn.classList.remove('on'); ico.textContent='▶'; tm.hidden=true;
+    btn.title='Scheduler otomatis (test semua key berkala)';
   }
-  const ms=parseInt(document.getElementById('selLocal').value);
-  if(!ms){toast('Pilih interval terlebih dahulu','err');return;}
-  localTimer=setInterval(testAllKeys,ms);localOn=true;
-  document.getElementById('localBtn').textContent='⏹ Stop';
-  document.getElementById('localPill').textContent='● Aktif · '+SCHED[ms];
-  document.getElementById('localPill').classList.add('active');
-  toast('Local scheduler setiap '+SCHED[ms]+' aktif ✓','ok');
+  const lb=document.getElementById('localBtn');
+  if(lb) lb.textContent=localOn?'⏹ Stop':'▶ Aktifkan';
+  const pill=document.getElementById('localPill');
+  if(pill){
+    pill.textContent=localOn?'● Aktif · tiap '+humanInterval(schedMs):'Belum dijadwalkan';
+    pill.classList.toggle('active',localOn);
+  }
+}
+function restoreSched(){
+  let d=null; try{d=JSON.parse(localStorage.getItem('apivault_sched'));}catch(_){}
+  if(d&&d.on&&d.ms){ setLocalInterval(d.ms); schedStart(d.ms,d.next); }
+  else updateSchedUI();
 }
 
 // ══════════════════════════════════════
@@ -1923,6 +2020,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const gid=localStorage.getItem('apivault_gist_id');
   if(gid) document.getElementById('inpGistId').value=gid;
   render(); renderSettings(); updateProvInfo(); updateSyncStatus(); renderCloudBar();
+  restoreSched(); updateCronPreview();
   document.getElementById('inpKey').addEventListener('keydown',e=>{if(e.key==='Enter')addKey();});
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
