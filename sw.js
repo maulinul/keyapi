@@ -2,7 +2,7 @@
 // App shell di-cache saat install; index.html network-first (update cepat,
 // offline tetap jalan), aset statis & CDN stale-while-revalidate.
 // Request API provider (test key, GitHub) tidak pernah di-cache.
-const VER = 'v3';
+const VER = 'v4';
 const CACHE = 'apivault-' + VER;
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 const CDN_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
